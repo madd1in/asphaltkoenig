@@ -1,0 +1,159 @@
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const { spawn } = require('node:child_process');
+
+const browserPath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const htmlPath = path.join(__dirname, 'index.html');
+const screenshotPath = path.join(__dirname, 'smoke-test.png');
+const profilePath = fs.mkdtempSync(path.join(os.tmpdir(), 'asphaltkoenig-edge-'));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function run() {
+  const browser = spawn(browserPath, [
+    '--headless=new',
+    '--disable-gpu',
+    '--hide-scrollbars',
+    '--remote-debugging-pipe',
+    `--user-data-dir=${profilePath}`,
+    '--allow-file-access-from-files',
+    '--window-size=1280,720',
+    pathToFileURL(htmlPath).href,
+  ], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'], windowsHide: true });
+  browser.unref();
+
+  try {
+    let id = 0;
+    let sessionId = null;
+    let input = Buffer.alloc(0);
+    const pending = new Map();
+    const errors = new Set();
+
+    const receive = (message) => {
+      if (message.id) {
+        const request = pending.get(message.id);
+        if (!request) return;
+        pending.delete(message.id);
+        if (message.error) request.reject(new Error(JSON.stringify(message.error)));
+        else request.resolve(message.result);
+        return;
+      }
+      if (message.method === 'Runtime.exceptionThrown') {
+        const details = message.params.exceptionDetails;
+        const exception = details.exception || {};
+        const frame = details.stackTrace && details.stackTrace.callFrames && details.stackTrace.callFrames[0];
+        errors.add([
+          exception.description || exception.value || details.text || 'Uncaught exception',
+          frame ? `${frame.url}:${frame.lineNumber + 1}:${frame.columnNumber + 1}` : '',
+        ].filter(Boolean).join(' @ '));
+      }
+      if (message.method === 'Log.entryAdded' && message.params.entry.level === 'error') {
+        errors.add(message.params.entry.text);
+      }
+    };
+
+    browser.stdio[4].on('data', (chunk) => {
+      input = Buffer.concat([input, chunk]);
+      let separator;
+      while ((separator = input.indexOf(0)) >= 0) {
+        const raw = input.subarray(0, separator).toString('utf8');
+        input = input.subarray(separator + 1);
+        if (raw) receive(JSON.parse(raw));
+      }
+    });
+
+    const send = (method, params = {}, targetSession = sessionId) => new Promise((resolve, reject) => {
+      const requestId = ++id;
+      const timer = setTimeout(() => {
+        pending.delete(requestId);
+        reject(new Error(`CDP timeout: ${method}`));
+      }, 15000);
+      pending.set(requestId, {
+        resolve: (value) => { clearTimeout(timer); resolve(value); },
+        reject: (error) => { clearTimeout(timer); reject(error); },
+      });
+      const message = { id: requestId, method, params };
+      if (targetSession) message.sessionId = targetSession;
+      browser.stdio[3].write(`${JSON.stringify(message)}\0`);
+    });
+
+    const targetInfos = (await send('Target.getTargets', {}, null)).targetInfos;
+    const target = targetInfos.find((item) => item.type === 'page' && item.url.includes('index.html'))
+      || targetInfos.find((item) => item.type === 'page');
+    if (!target) throw new Error('No page target found');
+    sessionId = (await send('Target.attachToTarget', {
+      targetId: target.targetId,
+      flatten: true,
+    }, null)).sessionId;
+
+    const evaluate = async (expression) => {
+      const result = await send('Runtime.evaluate', { expression, returnByValue: true });
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+      return result.result.value;
+    };
+
+    await send('Runtime.enable');
+    await send('Page.enable');
+    await send('Log.enable');
+    await send('Page.reload', { ignoreCache: true });
+    await delay(5000);
+
+    const before = await evaluate(`(() => ({
+      readyState: document.readyState,
+      title: document.title,
+      three: typeof THREE,
+      player: typeof player,
+      button: Boolean(document.getElementById('startBtn')),
+      canvasCount: document.querySelectorAll('canvas').length
+    }))()`);
+
+    await evaluate(`document.getElementById('startBtn').click()`);
+    await delay(3000);
+    const startPosition = await evaluate(`({ x: player.x, z: player.z })`);
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w' });
+    await delay(900);
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyW', key: 'w' });
+    await delay(300);
+
+    const after = await evaluate(`(() => ({
+      started: G.started,
+      paused: G.paused,
+      dead: G.dead,
+      player: Boolean(player),
+      playerX: player.x,
+      playerZ: player.z,
+      sceneChildren: scene.children.length,
+      rendererCanvas: renderer.domElement.isConnected,
+      startVisible: document.getElementById('startScreen').classList.contains('show'),
+      money: document.getElementById('moneyEl').textContent,
+      frameTime: G.time
+    }))()`);
+
+    const screenshot = await send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
+    const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
+    const errorList = Array.from(errors);
+    const result = { before, after, moved, errors: errorList };
+    console.log(JSON.stringify(result, null, 2));
+
+    if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved || errorList.length) {
+      process.exitCode = 1;
+    }
+
+  } finally {
+    if (!browser.killed) browser.kill('SIGKILL');
+    await delay(1500);
+    const safePrefix = path.join(os.tmpdir(), 'asphaltkoenig-edge-');
+    if (profilePath.startsWith(safePrefix)) {
+      try {
+        fs.rmSync(profilePath, { recursive: true, force: true, maxRetries: 5, retryDelay: 250 });
+      } catch {}
+    }
+  }
+}
+
+run().catch((error) => {
+  console.error(error.stack || error.message);
+  process.exitCode = 1;
+});
