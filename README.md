@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.2.1
+
+- fairere Polizeiverfolgung: weniger Einheiten, gestaffelte Verstärkung und deutlich seltenerer Rammschaden
+- schnellere Abkühlung des Fahndungslevels sowie eine längere Festnahmezeit zu Fuß
+- Shuffle Radio startet ruhig mit „Boulevard Heat Loop“ und blendet sanfter ein
+
 ## Neu in Version 1.2
 
 - acht zusätzliche lokale MP3-Tracks als standardmäßig aktives Shuffle-Radio ohne Wiederholungen

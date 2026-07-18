@@ -149,7 +149,7 @@ var beacons = [];        // aktive Missions-Beacons
 var G = {
   started:false, paused:false, dead:false, deadT:0, deadKind:'',
   money:250, record:250, health:100,
-  heat:0, stars:0, lastCrime:-99,
+  heat:0, stars:0, lastCrime:-99, nextCopAt:0,
   inCar:null, drivenCars:[],
   time:0, kmh:0, bustT:0,
   mission:null, missionsDone:0,
@@ -201,13 +201,14 @@ function resolveCircleAABB(o, r){
 var AC=null, musicBus=null, sfxBus=null, radioGain=null, bgmGain=null, noiseBuf=null;
 var radioNext=0, radioStep=0, sirenNext=0, sirenOn=false;
 var mp3Bgm=null, mp3Radios=[], shuffleAudios=[], shuffleBag=[], shuffleNow=null, shuffleNowIndex=-1, lastShuffleIndex=-1, mp3Failed=false;
+var firstShufflePending=true, shuffleIntroUntil=0;
 var shuffleTracks = [
-  {name:'Neon Heist Run', src:'assets/audio/shuffle/neon-heist-run-a.mp3'},
-  {name:'Neon Heist Run · Night Mix', src:'assets/audio/shuffle/neon-heist-run-b.mp3'},
-  {name:'Vice Coast Run', src:'assets/audio/shuffle/vice-coast-run-a.mp3'},
-  {name:'Vice Coast Run · Alt Mix', src:'assets/audio/shuffle/vice-coast-run-b.mp3'},
   {name:'Boulevard Heat Loop', src:'assets/audio/shuffle/boulevard-heat-loop-a.mp3'},
   {name:'Boulevard Heat Loop · Alt Mix', src:'assets/audio/shuffle/boulevard-heat-loop-b.mp3'},
+  {name:'Vice Coast Run', src:'assets/audio/shuffle/vice-coast-run-a.mp3'},
+  {name:'Vice Coast Run · Alt Mix', src:'assets/audio/shuffle/vice-coast-run-b.mp3'},
+  {name:'Neon Heist Run', src:'assets/audio/shuffle/neon-heist-run-a.mp3'},
+  {name:'Neon Heist Run · Night Mix', src:'assets/audio/shuffle/neon-heist-run-b.mp3'},
   {name:'Five Star Mayhem', src:'assets/audio/shuffle/five-star-mayhem-a.mp3'},
   {name:'Five Star Mayhem · Alt Mix', src:'assets/audio/shuffle/five-star-mayhem-b.mp3'}
 ];
@@ -268,6 +269,17 @@ function refillShuffleBag(){
 function nextShuffleTrack(announce){
   if(!shuffleAudios.length) initMp3Audio();
   if(!shuffleBag.length) refillShuffleBag();
+  if(firstShufflePending){
+    firstShufflePending=false;
+    var preferred=0, pos=shuffleBag.indexOf(preferred);
+    if(pos>=0) shuffleBag.splice(pos,1);
+    var opener=shuffleAudios[preferred];
+    if(opener && !opener._failed){
+      shuffleNow=opener; shuffleNowIndex=preferred; opener.currentTime=0; shuffleIntroUntil=G.time+18;
+      if(announce!==false) speak('Jetzt läuft entspannt ' + shuffleTracks[preferred].name, false);
+      return opener;
+    }
+  }
   var tries=shuffleBag.length;
   while(tries-->0){
     var index=shuffleBag.pop(), audio=shuffleAudios[index];
@@ -293,7 +305,8 @@ function syncMp3Audio(){
   }
   var tracks = [mp3Bgm].concat(mp3Radios, shuffleAudios);
   for(var i=0;i<tracks.length;i++){
-    var audio = tracks[i], target = audio===desired ? (audio===mp3Bgm?0.34:0.5) : 0;
+    var audio=tracks[i], isShuffle=shuffleAudios.indexOf(audio)>=0;
+    var target = audio===desired ? (audio===mp3Bgm?0.34:(isShuffle?(G.time<shuffleIntroUntil?0.30:0.40):0.46)) : 0;
     audio.volume += (target-audio.volume)*0.09;
     if(audio===desired && audio.paused){
       var promise = audio.play();
@@ -871,7 +884,7 @@ function spawnPlayer(){
 // ---------- Polizei ----------
 function spawnCop(){
   var a = rand(0, Math.PI*2);
-  var d = rand(95, 135);
+  var d = rand(125, 175);
   var px = player ? (G.inCar ? G.inCar.x : player.x) : 0;
   var pz = player ? (G.inCar ? G.inCar.z : player.z) : 0;
   // auf naechster Strasse platzieren
@@ -880,22 +893,22 @@ function spawnCop(){
   var snapX = Math.round(x/BLOCK)*BLOCK, snapZ = Math.round(z/BLOCK)*BLOCK;
   if(Math.abs(x-snapX) < Math.abs(z-snapZ)) x = snapX; else z = snapZ;
   var c = newCar(x, z, rand(-3,3), 0xf2f4f7, 'police');
-  c.copSpeed = 0;
+  c.copSpeed = 0; c.ramCool = 0;
   cops.push(c);
   return c;
 }
-function copCount(){ return G.stars<=0 ? 0 : Math.min(7, G.stars + (G.stars>=3?2:1)); }
+function copCount(){ return [0,1,2,2,3,4][clamp(G.stars,0,5)]; }
 // ---------- Fahndung ----------
 function addHeat(x){
   G.heat = Math.min(120, G.heat + x);
   G.lastCrime = G.time;
 }
 function starsFromHeat(h){
-  if(h>=100) return 5; if(h>=70) return 4; if(h>=45) return 3;
-  if(h>=25) return 2; if(h>=10) return 1; return 0;
+  if(h>=115) return 5; if(h>=85) return 4; if(h>=58) return 3;
+  if(h>=35) return 2; if(h>=15) return 1; return 0;
 }
 function updateWanted(dt){
-  if(G.time - G.lastCrime > 7) G.heat = Math.max(0, G.heat - 2.4*dt);
+  if(G.time - G.lastCrime > 5) G.heat = Math.max(0, G.heat - 4.0*dt);
   var s = starsFromHeat(G.heat);
   if(s===0 && G.stars>0){
     showToast('ENTKOMMEN! Die Polizei gibt auf.', 3);
@@ -908,7 +921,10 @@ function updateWanted(dt){
   var want = copCount();
   var active = 0;
   for(var j=0;j<cops.length;j++) if(!cops[j].leaving && !cops[j].dead) active++;
-  while(active < want){ spawnCop(); active++; }
+  if(active < want && G.time>=G.nextCopAt){ spawnCop(); G.nextCopAt=G.time+3.5; active++; }
+  for(var k=cops.length-1;k>=0 && active>want;k--){
+    if(!cops[k].leaving && !cops[k].dead){ cops[k].leaving=true; cops[k].leaveT=0; active--; }
+  }
 }
 
 // ---------- Schaden / Tod ----------
@@ -943,7 +959,7 @@ function respawn(){
   if(G.inCar){ G.inCar.driver=false; G.inCar = null; player.mesh.visible = true; }
   var p = G.deadKind==='busted' ? {x:-90, z:-113} : {x:90, z:127};
   player.x = p.x; player.z = p.z; player.angle = 0; player.speed = 0;
-  G.health = 100; G.heat = 0; G.stars = 0; G.bustT = 0;
+  G.health = 100; G.heat = 0; G.stars = 0; G.bustT = 0; G.nextCopAt=G.time;
   for(var i=0;i<cops.length;i++) cops[i].leaving = true;
 }
 
@@ -1242,9 +1258,10 @@ function updateCops(dt){
   var px = G.inCar ? G.inCar.x : player.x;
   var pz = G.inCar ? G.inCar.z : player.z;
   var pvx = G.inCar ? G.inCar.vx : 0, pvz = G.inCar ? G.inCar.vz : 0;
-  var anyNear = false;
+  var anyNear = false, arresting=false;
   for(var i=cops.length-1;i>=0;i--){
     var c = cops[i];
+    c.ramCool = Math.max(0,(c.ramCool||0)-dt);
     c.blink += dt;
     var ud = c.mesh.userData;
     if(ud.lightR){ var b = Math.floor(c.blink*6)%2===0; ud.lightR.visible = b; ud.lightB.visible = !b; }
@@ -1264,16 +1281,16 @@ function updateCops(dt){
       if(c.leaveT > 3){ scene.remove(c.mesh); cops.splice(i,1); }
       continue;
     }
-    var tx = px + pvx*0.55, tz = pz + pvz*0.55;
+    var tx = px + pvx*0.32, tz = pz + pvz*0.32;
     var dx = tx-c.x, dz = tz-c.z;
     var d = Math.sqrt(dx*dx+dz*dz);
     if(d < 70) anyNear = true;
     var desired = Math.atan2(dx, dz);
-    c.angle = angLerp(c.angle, desired, (1.7 + G.stars*0.18)*dt);
-    var maxSp = 16 + G.stars*3;
+    c.angle = angLerp(c.angle, desired, (1.25 + G.stars*0.12)*dt);
+    var maxSp = 15 + G.stars*2.4;
     // zu Fuss: anhalten statt ueberfahren (Festnahme!)
     var stopD = G.inCar ? 0 : 5;
-    if(d > stopD + 2) c.copSpeed = Math.min(maxSp, c.copSpeed + 13*dt);
+    if(d > stopD + 2) c.copSpeed = Math.min(maxSp, c.copSpeed + 9*dt);
     else c.copSpeed = Math.max(0, c.copSpeed - 30*dt);
     if(c.revT > 0){
       c.revT -= dt;
@@ -1296,27 +1313,30 @@ function updateCops(dt){
         var pd = Math.sqrt(pd2)||0.1;
         var nx = (G.inCar.x-c.x)/pd, nz = (G.inCar.z-c.z)/pd;
         var relSp = Math.abs(c.copSpeed);
-        if(relSp > 5){
-          G.inCar.hp -= Math.round(relSp*0.75);
-          c.hp -= Math.round(relSp*0.4);
-          G.inCar.vx += nx*relSp*0.45; G.inCar.vz += nz*relSp*0.45;
+        if(relSp > 5 && c.ramCool<=0){
+          G.inCar.hp -= Math.max(2,Math.round(relSp*0.28));
+          c.hp -= Math.round(relSp*0.25);
+          G.inCar.vx += nx*relSp*0.25; G.inCar.vz += nz*relSp*0.25;
           sfxCrash(relSp*0.4);
-          G.shake = Math.max(G.shake, 0.3);
+          G.shake = Math.max(G.shake, 0.2);
+          c.ramCool=0.9;
           if(c.hp<=0) explodeCar(c);
           if(G.inCar.hp<=0 && !G.inCar.dead) explodeCar(G.inCar);
         }
-        c.copSpeed *= 0.4;
+        c.copSpeed *= 0.65;
       }
     } else {
       // Festnahme zu Fuss
       var pdd = dist(c.x,c.z,player.x,player.z);
-      if(pdd < 3.4 && player.speed < 7.5){
-        G.bustT += dt;
-        if(G.bustT > 0.8) gameOver('busted');
+      if(pdd < 2.8 && player.speed < 7.5){
+        if(!arresting) G.bustT += dt;
+        arresting=true;
+        if(G.bustT > 2.0) gameOver('busted');
       }
-      if(pdd < 2.0 && Math.abs(c.copSpeed) > 8) damagePlayer(25);
+      if(pdd < 2.0 && Math.abs(c.copSpeed) > 8 && c.ramCool<=0){ damagePlayer(12); c.ramCool=1.0; }
     }
   }
+  if(!arresting) G.bustT=Math.max(0,G.bustT-dt*1.5);
   if(G.stars===0) G.bustT = 0;
   updateSiren(anyNear);
 }
@@ -2303,8 +2323,7 @@ function updateHeli(dt){
     var oa = h.t*0.55;
     tx = px + Math.cos(oa)*26; tz = pz + Math.sin(oa)*26;
     ty = 36 + Math.sin(h.t*1.3)*2;
-    // Fahndungsdruck: solange der Heli dran ist, klingt nichts ab
-    if(G.time - G.lastCrime > 5) G.lastCrime = G.time - 5;
+    // Der Heli hält Sichtkontakt, verhindert die Flucht aber nicht mehr dauerhaft.
   }
   h.x += (tx-h.x)*clamp(2.2*dt,0,1);
   h.z += (tz-h.z)*clamp(2.2*dt,0,1);

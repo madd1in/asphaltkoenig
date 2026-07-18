@@ -133,6 +133,7 @@ async function run() {
       shuffleSources: shuffleAudios.map((audio) => audio && audio.src),
       shuffleDurations: shuffleAudios.map((audio) => audio && audio.duration),
       shuffleBagUnique: (refillShuffleBag(), new Set(shuffleBag).size === shuffleTracks.length),
+      openerName: shuffleTracks[0].name,
       defaultRadio: G.radio,
       voiceFunction: typeof speak,
       voiceEnabled,
@@ -156,11 +157,41 @@ async function run() {
       return Math.abs(G.kmh);
     })()`);
     const nitro = await evaluate(`(() => {
-      const before = G.nitro;
-      keys.KeyW = true; keys.KeyQ = true;
-      for (let frame = 0; frame < 12; frame += 1) updatePlayerCar(G.inCar, 1/60);
-      keys.KeyW = false; keys.KeyQ = false;
-      return { before, after: G.nitro, label: radioName(G.radio) };
+      try {
+        syncMp3Audio();
+        const before = G.nitro;
+        keys.KeyW = true; keys.KeyQ = true;
+        for (let frame = 0; frame < 12; frame += 1) updatePlayerCar(G.inCar, 1/60);
+        keys.KeyW = false; keys.KeyQ = false;
+        return { before, after: G.nitro, label: radioName(G.radio), opener: shuffleNowIndex>=0 ? shuffleTracks[shuffleNowIndex].name : 'NONE', mp3Failed };
+      } catch (error) { return { error: error.stack || error.message }; }
+    })()`);
+    const policeBalance = await evaluate(`(() => {
+      const counts = [1,2,3,4,5].map((stars) => { G.stars = stars; return copCount(); });
+      const heatSteps = [14,15,34,35,57,58,84,85,114,115].map(starsFromHeat);
+      const car = G.inCar;
+      car.hp = 100;
+      const cop = spawnCop();
+      cop.x = car.x; cop.z = car.z - 3; cop.angle = 0; cop.copSpeed = 20; cop.ramCool = 0;
+      const hp0 = car.hp;
+      updateCops(1/60);
+      const firstRamDamage = hp0 - car.hp;
+      const hp1 = car.hp;
+      cop.x = car.x; cop.z = car.z - 3; cop.copSpeed = 20;
+      updateCops(1/60);
+      const repeatRamDamage = hp1 - car.hp;
+      scene.remove(cop.mesh);
+      cops.splice(cops.indexOf(cop),1);
+      const oldTime = G.time;
+      G.time = 100; G.heat = 90; G.lastCrime = 94; G.nextCopAt = 0; G.stars = 0;
+      updateWanted(1);
+      const decay = [G.heat], reinforcements = [cops.filter((item) => !item.leaving && !item.dead).length];
+      G.time = 101; updateWanted(1); decay.push(G.heat); reinforcements.push(cops.filter((item) => !item.leaving && !item.dead).length);
+      G.time = 104; updateWanted(1); decay.push(G.heat); reinforcements.push(cops.filter((item) => !item.leaving && !item.dead).length);
+      while (cops.length) scene.remove(cops.pop().mesh);
+      G.time = oldTime;
+      G.stars = 0; G.heat = 0;
+      return { counts, heatSteps, firstRamDamage, repeatRamDamage, ramCool: cop.ramCool, decay, reinforcements };
     })()`);
 
     const after = await evaluate(`(() => ({
@@ -181,14 +212,21 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, nitro, assets, errors: errorList };
+    const result = { before, after, moved, driveKmh, nitro, policeBalance, assets, errors: errorList };
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
       || driveKmh < 55 || !assets.surfaceTilesReady || !assets.detailTilesReady || !assets.cityPropsReady
       || !assets.texturedRoads || !assets.texturedBlocks || assets.detailPlots < 30 || assets.propSprites < 24
       || assets.mp3Failed || assets.radioTracks !== 4 || assets.shuffleTracks !== 8 || assets.shuffleAudios !== 8
-      || assets.defaultRadio !== 1 || nitro.label !== 'SHUFFLE RADIO' || !(nitro.after < nitro.before)
+      || assets.defaultRadio !== 1 || assets.openerName !== 'Boulevard Heat Loop'
+      || nitro.label !== 'SHUFFLE RADIO' || nitro.opener !== 'Boulevard Heat Loop' || !(nitro.after < nitro.before)
+      || policeBalance.counts.join(',') !== '1,2,2,3,4'
+      || policeBalance.heatSteps.join(',') !== '0,1,1,2,2,3,3,4,4,5'
+      || policeBalance.firstRamDamage < 2 || policeBalance.firstRamDamage > 8
+      || policeBalance.repeatRamDamage !== 0 || policeBalance.ramCool <= 0
+      || policeBalance.decay.join(',') !== '86,82,78'
+      || policeBalance.reinforcements.join(',') !== '1,1,2'
       || assets.voiceFunction !== 'function' || !assets.voiceEnabled || !assets.shuffleBagUnique
       || assets.playerParts < 14 || assets.carParts < 25 || assets.mp3Sources.some((source) => !source.endsWith('.mp3'))
       || assets.shuffleSources.some((source) => !source.endsWith('.mp3'))
