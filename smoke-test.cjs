@@ -118,12 +118,26 @@ async function run() {
 
     const assets = await evaluate(`(() => ({
       surfaceTilesReady,
+      detailTilesReady,
+      cityPropsReady,
       texturedRoads: Boolean(roadMatG.map && roadMatCrossG.map),
       texturedBlocks: Boolean(groundMatG.map && padMatG.map && grassMatG.map && plotMatG.map),
+      detailPlots: detailPlotTargets.length,
+      propSprites: cityPropSprites.length,
       mp3Failed,
       radioTracks: mp3Radios.length,
+      shuffleTracks: shuffleTracks.length,
+      shuffleAudios: shuffleAudios.length,
       mp3Sources: [mp3Bgm].concat(mp3Radios).map((audio) => audio && audio.src),
       mp3Durations: [mp3Bgm].concat(mp3Radios).map((audio) => audio && audio.duration),
+      shuffleSources: shuffleAudios.map((audio) => audio && audio.src),
+      shuffleDurations: shuffleAudios.map((audio) => audio && audio.duration),
+      shuffleBagUnique: (refillShuffleBag(), new Set(shuffleBag).size === shuffleTracks.length),
+      defaultRadio: G.radio,
+      voiceFunction: typeof speak,
+      voiceEnabled,
+      playerParts: player.mesh.children.length,
+      carParts: parkedCars[0].mesh.children.length,
       pixelRatio: renderer.getPixelRatio()
     }))()`);
 
@@ -140,6 +154,13 @@ async function run() {
       for (let frame = 0; frame < 54; frame += 1) updatePlayerCar(G.inCar, 1/60);
       keys.KeyW = false;
       return Math.abs(G.kmh);
+    })()`);
+    const nitro = await evaluate(`(() => {
+      const before = G.nitro;
+      keys.KeyW = true; keys.KeyQ = true;
+      for (let frame = 0; frame < 12; frame += 1) updatePlayerCar(G.inCar, 1/60);
+      keys.KeyW = false; keys.KeyQ = false;
+      return { before, after: G.nitro, label: radioName(G.radio) };
     })()`);
 
     const after = await evaluate(`(() => ({
@@ -160,13 +181,19 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, assets, errors: errorList };
+    const result = { before, after, moved, driveKmh, nitro, assets, errors: errorList };
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
-      || driveKmh < 55 || !assets.surfaceTilesReady || !assets.texturedRoads || !assets.texturedBlocks
-      || assets.mp3Failed || assets.radioTracks !== 4 || assets.mp3Sources.some((source) => !source.endsWith('.mp3'))
+      || driveKmh < 55 || !assets.surfaceTilesReady || !assets.detailTilesReady || !assets.cityPropsReady
+      || !assets.texturedRoads || !assets.texturedBlocks || assets.detailPlots < 30 || assets.propSprites < 24
+      || assets.mp3Failed || assets.radioTracks !== 4 || assets.shuffleTracks !== 8 || assets.shuffleAudios !== 8
+      || assets.defaultRadio !== 1 || nitro.label !== 'SHUFFLE RADIO' || !(nitro.after < nitro.before)
+      || assets.voiceFunction !== 'function' || !assets.voiceEnabled || !assets.shuffleBagUnique
+      || assets.playerParts < 14 || assets.carParts < 25 || assets.mp3Sources.some((source) => !source.endsWith('.mp3'))
+      || assets.shuffleSources.some((source) => !source.endsWith('.mp3'))
       || assets.mp3Durations.some((duration) => !Number.isFinite(duration) || duration < 5)
+      || assets.shuffleDurations.some((duration) => !Number.isFinite(duration) || duration < 30)
       || assets.pixelRatio > 1.35 || errorList.length) {
       process.exitCode = 1;
     }

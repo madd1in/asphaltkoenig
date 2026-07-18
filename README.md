@@ -2,12 +2,14 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
-## Neu in Version 1.1
+## Neu in Version 1.2
 
-- direktere Fahrzeugbeschleunigung, Lenkung und Bewegung zu Fuß
-- fünf lokal ausgelieferte MP3-Loops für Straßen-BGM und vier Radiosender
-- texturierte Straßen, Gehwege, Betonflächen und Parks aus einem City-Tile-Atlas
-- geringere Renderlast durch adaptive Pixelratio, getaktete Schatten und ein gedrosseltes HUD
+- acht zusätzliche lokale MP3-Tracks als standardmäßig aktives Shuffle-Radio ohne Wiederholungen
+- deutsche Sprachausgabe für Missionsbriefings, Erfolge, Radio und Game Over (`V` schaltet sie um)
+- ein zweites City-Tile-Atlas sowie 16 freigestellte Stadtmöbel-Sprites für abwechslungsreichere Viertel
+- detailreichere Fahrzeugklassen und eine überarbeitete Spielerfigur
+- Nitro-Boost auf `Q` samt HUD-Anzeige und „Now Playing“-Radioanzeige
+- weiterhin optimierte Renderlast durch adaptive Pixelratio, getaktete Schatten und ein gedrosseltes HUD
 
 ## Spielen
 
@@ -20,8 +22,10 @@ Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 - `E`: ein- und aussteigen
 - `F`: schlagen
 - `Leertaste`: Handbremse
+- `Q`: Nitro
 - `H`: Hupe
 - `R`: Radiosender wechseln
+- `V`: Sprachausgabe an/aus
 - `P`: Pause
 
 ## Lokaler Test
@@ -33,7 +37,7 @@ npm install
 node .\smoke-test.cjs
 ```
 
-Der Smoke-Test lädt das Spiel in einem Headless-Browser, startet eine Runde und prüft Bewegung, Beschleunigung, Tile-Texturen, MP3-Metadaten und JavaScript-Laufzeitfehler.
+Der Smoke-Test lädt das Spiel in einem Headless-Browser, startet eine Runde und prüft Bewegung, Beschleunigung, Nitro, Tile-/Sprite-Assets, Shuffle-Radio, MP3-Metadaten, Modellumfang und JavaScript-Laufzeitfehler.
 
 Die MP3-Loops lassen sich deterministisch neu erzeugen:
 
@@ -41,4 +45,4 @@ Die MP3-Loops lassen sich deterministisch neu erzeugen:
 npm run generate:music
 ```
 
-Das verwendete City-Tile-Atlas wurde für dieses Projekt mit OpenAI Imagegen erzeugt und anschließend als kompaktes JPEG eingebunden.
+Die verwendeten City-Tile- und Sprite-Atlanten wurden für dieses Projekt mit OpenAI Imagegen erzeugt. Die Stadtmöbel wurden anschließend per Chroma-Key als transparentes PNG aufbereitet.

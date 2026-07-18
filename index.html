@@ -25,8 +25,12 @@
   #condFill{background:linear-gradient(90deg,#e08a3a,#e0c04a);width:100%;}
   .barLabel{font-size:10px;color:#a7adb8;text-transform:uppercase;letter-spacing:1px;}
   #minimap{position:fixed;top:12px;right:12px;border-radius:50%;border:1px solid rgba(255,255,255,0.18);box-shadow:0 4px 18px rgba(0,0,0,0.35);z-index:5;}
+  #radioEl{position:fixed;top:194px;right:12px;max-width:260px;font-size:11px;font-weight:800;letter-spacing:.7px;
+           color:#ffe18a;display:none;z-index:5;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   #speedEl{position:fixed;bottom:14px;right:14px;font-size:24px;font-weight:800;color:#eef1f5;
            display:none;z-index:5;}
+  #nitroWrap{position:fixed;bottom:54px;right:14px;width:128px;display:none;z-index:5;}
+  #nitroFill{background:linear-gradient(90deg,#2ce1ff,#8f6cff);width:100%;box-shadow:0 0 10px rgba(44,225,255,.55);}
   #missionPanel{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);text-align:center;display:none;z-index:5;min-width:280px;}
   #missionTitle{font-weight:800;color:#ffd24a;font-size:15px;letter-spacing:0.6px;}
   #missionInfo{font-size:13px;color:#dfe3ea;margin-top:2px;}
@@ -75,14 +79,16 @@
   </div>
 </div>
 <canvas id="minimap" width="170" height="170"></canvas>
+<div id="radioEl" class="chip"></div>
 <div id="speedEl">0 km/h</div>
+<div id="nitroWrap" class="chip"><div class="barLabel">Nitro [Q]</div><div class="bar" style="width:128px"><div id="nitroFill"></div></div></div>
 <div id="missionPanel" class="chip">
   <div id="missionTitle"></div>
   <div id="missionInfo"></div>
 </div>
 <div id="promptEl" class="chip"></div>
 <div id="toastEl" class="chip"></div>
-<div id="hintEl">WASD Bewegen/Lenken · SHIFT Sprint · E Ein-/Aussteigen · F Schlagen/Snack · LEER Handbremse · H Hupe · R Radio · P Pause<br>Gelb-schwarze Rampen = Stunt-Bonus · 8 Kronen ♛ versteckt · Werkstatt (blaues ⚙): H Reparatur / T Tuning · Grüne Geisterpfeile führen zum Ziel · Blitzer ab 60 km/h · U Nebenjob · M Dossier · N Radar-Zoom<br>🏁 Ringe = Zeitrennen (Bestzeiten im Dossier) · Würstlstände heilen für 15 € · 11 Erfolge freischaltbar</div>
+<div id="hintEl">WASD Bewegen/Lenken · SHIFT Sprint · E Ein-/Aussteigen · F Schlagen/Snack · LEER Handbremse · Q Nitro · H Hupe · R Radio · V Stimme · P Pause<br>Gelb-schwarze Rampen = Stunt-Bonus · 8 Kronen ♛ versteckt · Werkstatt (blaues ⚙): H Reparatur / T Tuning · Grüne Geisterpfeile führen zum Ziel · Blitzer ab 60 km/h · U Nebenjob · M Dossier · N Radar-Zoom<br>🏁 Ringe = Zeitrennen (Bestzeiten im Dossier) · Würstlstände heilen für 15 € · 11 Erfolge freischaltbar</div>
 
 <div id="startScreen" class="screen show">
   <h1 id="gameTitle">ASPHALTKÖNIG</h1>
@@ -92,7 +98,7 @@
     <b>SHIFT</b> Sprinten<br>
     <b>E</b> Ein- / Aussteigen<br>
     <b>F</b> Schlagen &nbsp;·&nbsp; <b>LEERTASTE</b> Handbremse<br>
-    <b>H</b> Hupe &nbsp;·&nbsp; <b>R</b> Radiosender &nbsp;·&nbsp; <b>P</b> Pause<br>
+    <b>Q</b> Nitro &nbsp;·&nbsp; <b>H</b> Hupe &nbsp;·&nbsp; <b>R</b> Radiosender &nbsp;·&nbsp; <b>V</b> Stimme &nbsp;·&nbsp; <b>P</b> Pause<br>
     <b>U</b> Nebenjob &nbsp;·&nbsp; <b>M</b> Dossier &nbsp;·&nbsp; <b>N</b> Radar-Zoom &nbsp;·&nbsp; <b>T</b> Tuning<br>
     <span style="color:#ffd24a">Ziel:</span> Verdiene Geld mit Aufträgen (gelbe Ringe), sammle Scheine –<br>
     und entkomme der Polizei von Betonhain.<br>
@@ -129,6 +135,7 @@ var WORLD = HALFB * BLOCK; // 240 -> Welt von -240..240
 
 var scene, camera, renderer, sunLight, hemiLight, roadMatG, roadMatCrossG;
 var groundMatG, padMatG, grassMatG, plotMatG, surfaceTilesReady=false;
+var detailPlotTargets=[], cityPropAnchors=[], cityPropSprites=[], detailTilesReady=false, cityPropsReady=false;
 var solids = [];         // Gebäude-AABBs {x0,x1,z0,z1}
 var trafficCars = [];    // Verkehr
 var parkedCars = [];     // geparkte Autos
@@ -146,7 +153,7 @@ var G = {
   inCar:null, drivenCars:[],
   time:0, kmh:0, bustT:0,
   mission:null, missionsDone:0,
-  radio:1, toastT:0, toastMsg:'',
+  radio:1, nitro:100, toastT:0, toastMsg:'',
   shake:0, titleAngle:0
 };
 
@@ -193,33 +200,98 @@ function resolveCircleAABB(o, r){
 // ---------- Audio (prozedural, Web Audio) ----------
 var AC=null, musicBus=null, sfxBus=null, radioGain=null, bgmGain=null, noiseBuf=null;
 var radioNext=0, radioStep=0, sirenNext=0, sirenOn=false;
-var mp3Bgm=null, mp3Radios=[], mp3Failed=false;
+var mp3Bgm=null, mp3Radios=[], shuffleAudios=[], shuffleBag=[], shuffleNow=null, shuffleNowIndex=-1, lastShuffleIndex=-1, mp3Failed=false;
+var shuffleTracks = [
+  {name:'Neon Heist Run', src:'assets/audio/shuffle/neon-heist-run-a.mp3'},
+  {name:'Neon Heist Run · Night Mix', src:'assets/audio/shuffle/neon-heist-run-b.mp3'},
+  {name:'Vice Coast Run', src:'assets/audio/shuffle/vice-coast-run-a.mp3'},
+  {name:'Vice Coast Run · Alt Mix', src:'assets/audio/shuffle/vice-coast-run-b.mp3'},
+  {name:'Boulevard Heat Loop', src:'assets/audio/shuffle/boulevard-heat-loop-a.mp3'},
+  {name:'Boulevard Heat Loop · Alt Mix', src:'assets/audio/shuffle/boulevard-heat-loop-b.mp3'},
+  {name:'Five Star Mayhem', src:'assets/audio/shuffle/five-star-mayhem-a.mp3'},
+  {name:'Five Star Mayhem · Alt Mix', src:'assets/audio/shuffle/five-star-mayhem-b.mp3'}
+];
+var voiceEnabled=true, lastSpeechAt=0;
 
-function makeMp3Track(src){
+function speak(text, urgent){
+  if(!voiceEnabled || !text || typeof window==='undefined' || !window.speechSynthesis || typeof SpeechSynthesisUtterance==='undefined') return false;
+  var now = Date.now();
+  if(!urgent && now-lastSpeechAt < 2200) return false;
+  try{
+    if(urgent) window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = 'de-DE'; u.rate = 1.04; u.pitch = 0.92; u.volume = 0.72;
+    var voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+    for(var i=0;i<voices.length;i++) if(/^de([-_]|$)/i.test(voices[i].lang)){ u.voice=voices[i]; break; }
+    window.speechSynthesis.speak(u); lastSpeechAt=now; return true;
+  } catch(e){ return false; }
+}
+function radioName(index){
+  if(index===0) return 'AUS';
+  if(index===1) return 'SHUFFLE RADIO';
+  return SONGS[index-2] ? SONGS[index-2].name : 'RADIO';
+}
+function makeMp3Track(src, loop, preload, critical){
   var audio = new Audio(src);
-  audio.loop = true;
-  audio.preload = 'auto';
+  audio.loop = loop!==false;
+  audio.preload = preload||'metadata';
   audio.volume = 0;
-  audio.addEventListener('error', function(){ mp3Failed = true; }, {once:true});
+  audio.addEventListener('error', function(){ audio._failed=true; if(critical) mp3Failed=true; }, {once:true});
   return audio;
 }
 function initMp3Audio(){
   if(mp3Bgm || typeof Audio==='undefined') return;
-  mp3Bgm = makeMp3Track('assets/audio/betonhain-night.mp3');
+  mp3Bgm = makeMp3Track('assets/audio/betonhain-night.mp3', true, 'metadata', true);
   mp3Radios = [
-    makeMp3Track('assets/audio/funk-88-8.mp3'),
-    makeMp3Track('assets/audio/radio-chrom.mp3'),
-    makeMp3Track('assets/audio/nachtfalter-fm.mp3'),
-    makeMp3Track('assets/audio/basskeller.mp3')
+    makeMp3Track('assets/audio/funk-88-8.mp3', true, 'metadata', true),
+    makeMp3Track('assets/audio/radio-chrom.mp3', true, 'metadata', true),
+    makeMp3Track('assets/audio/nachtfalter-fm.mp3', true, 'metadata', true),
+    makeMp3Track('assets/audio/basskeller.mp3', true, 'metadata', true)
   ];
+  shuffleAudios = shuffleTracks.map(function(track, index){
+    var audio = makeMp3Track(track.src, false, 'metadata', false);
+    audio.addEventListener('ended', function(){ if(shuffleNow===audio){ lastShuffleIndex=audio._shuffleIndex; shuffleNow=null; shuffleNowIndex=-1; } });
+    audio._shuffleIndex=index;
+    return audio;
+  });
+}
+function refillShuffleBag(){
+  shuffleBag=[];
+  for(var i=0;i<shuffleTracks.length;i++) shuffleBag.push(i);
+  for(var j=shuffleBag.length-1;j>0;j--){
+    var k=Math.floor(Math.random()*(j+1)), tmp=shuffleBag[j]; shuffleBag[j]=shuffleBag[k]; shuffleBag[k]=tmp;
+  }
+  if(shuffleBag.length>1 && shuffleBag[shuffleBag.length-1]===lastShuffleIndex){
+    var s=shuffleBag[0]; shuffleBag[0]=shuffleBag[shuffleBag.length-1]; shuffleBag[shuffleBag.length-1]=s;
+  }
+}
+function nextShuffleTrack(announce){
+  if(!shuffleAudios.length) initMp3Audio();
+  if(!shuffleBag.length) refillShuffleBag();
+  var tries=shuffleBag.length;
+  while(tries-->0){
+    var index=shuffleBag.pop(), audio=shuffleAudios[index];
+    if(audio && !audio._failed){
+      if(shuffleNowIndex>=0) lastShuffleIndex=shuffleNowIndex;
+      shuffleNow=audio; shuffleNowIndex=index; audio.currentTime=0;
+      if(announce!==false) speak('Jetzt läuft ' + shuffleTracks[index].name, false);
+      return audio;
+    }
+  }
+  shuffleNow=null; shuffleNowIndex=-1; return null;
 }
 function syncMp3Audio(){
   if(mp3Failed) return false;
   if(!mp3Bgm) initMp3Audio();
   if(!mp3Bgm) return false;
   var active = G.started && !G.paused && !G.dead;
-  var desired = active ? (G.inCar && G.radio>0 ? mp3Radios[G.radio-1] : (!G.inCar ? mp3Bgm : null)) : null;
-  var tracks = [mp3Bgm].concat(mp3Radios);
+  var desired = null;
+  if(active){
+    if(!G.inCar) desired=mp3Bgm;
+    else if(G.radio===1) desired=shuffleNow || nextShuffleTrack(true);
+    else if(G.radio>=2) desired=mp3Radios[G.radio-2] || null;
+  }
+  var tracks = [mp3Bgm].concat(mp3Radios, shuffleAudios);
   for(var i=0;i<tracks.length;i++){
     var audio = tracks[i], target = audio===desired ? (audio===mp3Bgm?0.34:0.5) : 0;
     audio.volume += (target-audio.volume)*0.09;
@@ -305,7 +377,7 @@ function updateRadio(){
   var target = on ? 1 : 0;
   radioGain.gain.setTargetAtTime(target, AC.currentTime, 0.08);
   if(!on){ radioNext = AC.currentTime + 0.1; return; }
-  var song = SONGS[G.radio-1];
+  var song = SONGS[Math.max(0,G.radio-2)%SONGS.length];
   while(radioNext < AC.currentTime + 0.12){
     var s = radioStep % 16;
     var b = song.bass[s], l = song.lead[s];
@@ -438,6 +510,36 @@ function loadSurfaceTiles(){
     surfaceTilesReady = true;
   });
 }
+function atlasSpriteMaterial(image, col, row){
+  var cellW=Math.floor(image.width/4), cellH=Math.floor(image.height/4), inset=3;
+  var cv=document.createElement('canvas'); cv.width=256; cv.height=256;
+  cv.getContext('2d').drawImage(image,col*cellW+inset,row*cellH+inset,cellW-inset*2,cellH-inset*2,0,0,256,256);
+  var tx=new THREE.CanvasTexture(cv); tx.encoding=THREE.sRGBEncoding;
+  tx.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());
+  return new THREE.SpriteMaterial({map:tx,transparent:true,alphaTest:0.04,depthWrite:false});
+}
+function loadDetailAssets(){
+  new THREE.ImageLoader().load('assets/tiles/city-detail-atlas-v2.jpg', function(image){
+    var mats=[];
+    for(var row=0;row<2;row++) for(var col=0;col<2;col++){
+      var mat=lam(0xffffff); applySurfaceTexture(mat,atlasTileTexture(image,col,row,2.6,2.6)); mats.push(mat);
+    }
+    for(var i=0;i<detailPlotTargets.length;i++) detailPlotTargets[i].material=mats[i%mats.length];
+    detailTilesReady=true;
+  });
+  new THREE.ImageLoader().load('assets/sprites/city-props-atlas-v1.png', function(image){
+    var mats=[];
+    for(var row=0;row<4;row++) for(var col=0;col<4;col++) mats.push(atlasSpriteMaterial(image,col,row));
+    for(var i=0;i<cityPropAnchors.length;i++){
+      var sp=new THREE.Sprite(mats[(i*5+Math.floor(i/3))%mats.length]);
+      var wide=((i*5+Math.floor(i/3))%mats.length)===2 || ((i*5+Math.floor(i/3))%mats.length)===8 || ((i*5+Math.floor(i/3))%mats.length)===10;
+      sp.position.set(cityPropAnchors[i].x,wide?2.05:2.25,cityPropAnchors[i].z);
+      sp.scale.set(wide?5.8:4.5,wide?4.1:4.5,1);
+      scene.add(sp); cityPropSprites.push(sp);
+    }
+    cityPropsReady=true;
+  });
+}
 
 // ---------- Stadt-Generierung ----------
 var parkBlocks = [];
@@ -495,6 +597,12 @@ function buildCity(){
     pad.rotation.x=-Math.PI/2; pad.receiveShadow=true; scene.add(pad);
     var plot = mkMesh(new THREE.PlaneGeometry(38,38), isPark?grassMatG:plotMatG, cx, 0.055, cz);
     plot.rotation.x=-Math.PI/2; plot.receiveShadow=true; scene.add(plot);
+    if(!isPark) detailPlotTargets.push(plot);
+    if((bx+bz)%2===0){
+      var side=(bx*3+bz)%4;
+      cityPropAnchors.push({x:cx+(side===0?21:side===1?-21:(side===2?14:-14)),
+                            z:cz+(side===2?21:side===3?-21:(side===0?-14:14))});
+    }
 
     if(isPark){
       parkBlocks.push({x:cx,z:cz});
@@ -520,6 +628,7 @@ function buildCity(){
   }
 
   loadSurfaceTiles();
+  loadDetailAssets();
 
   function addBuilding(x, z, w, d, h){
     var tx = winTextures[randi(0,winTextures.length-1)].clone();
@@ -814,6 +923,7 @@ function gameOver(kind){
   if(G.mission) failMission('');
   if(kind==='busted'){ jingleBust(); }
   else { jingleFail(); }
+  speak(kind==='busted' ? 'Verhaftet. Die Fahrt ist vorbei.' : 'Ausgeknockt. Du wachst im Krankenhaus auf.', true);
   var el = document.getElementById('overTitle');
   var sub = document.getElementById('overSub');
   var loss = Math.floor(G.money*0.25);
@@ -1018,6 +1128,11 @@ function updatePlayerCar(c, dt){
   var baseF = c.kind==='sport' ? 46 : ((c.kind==='van'||c.kind==='ambulance') ? 33 : 40);
   var baseA = c.kind==='sport' ? 27 : ((c.kind==='van'||c.kind==='ambulance') ? 19 : 23);
   var maxF = c.tuned ? baseF*1.2 : baseF, maxR = -11, acc = c.tuned ? baseA*1.22 : baseA;
+  var nitroActive=!!(throttle && keys['KeyQ'] && G.nitro>0.5);
+  if(nitroActive){
+    acc*=1.62; maxF*=1.2; G.nitro=Math.max(0,G.nitro-31*dt);
+    if(Math.random()<dt*18) spawnPuff(c.x-fwdX*2.25,0.42,c.z-fwdZ*2.25,0x47dfff,0.45,0.22,0.45);
+  } else G.nitro=Math.min(100,G.nitro+5.5*dt);
   if(throttle) { c.vx += fwdX*acc*dt; c.vz += fwdZ*acc*dt; }
   if(brake){
     if(speedAlong > 1){ c.vx -= fwdX*36*dt; c.vz -= fwdZ*36*dt; }
@@ -1304,6 +1419,7 @@ function startMission(t){
   if(t===2) checkWreckMission();
   sfxCheckpoint();
   showToast('AUFTRAG ANGENOMMEN: ' + MTYPE_NAMES[t], 3);
+  speak('Neuer Auftrag. ' + MTYPE_NAMES[t] + '. ' + m.info, true);
 }
 
 function clearMarks(){
@@ -1343,6 +1459,7 @@ function completeMission(){
   cleanupMission();
   jingleWin();
   showToast('MISSION ERFÜLLT! +' + total + ' €' + (bonus>0 ? ' (inkl. '+bonus+' € Bonus)' : ''), 4);
+  speak('Mission erfüllt. ' + total + ' Euro verdient.', true);
   if(m.type===5) showToast('DER PATE IST GESTÜRZT – BETONHAIN GEHÖRT DIR! +' + total + ' €', 6);
 }
 function failMission(reason){
@@ -1351,6 +1468,7 @@ function failMission(reason){
   cleanupMission();
   if(!G.dead) jingleFail();
   showToast('MISSION GESCHEITERT' + (reason ? ' – ' + reason : ''), 3.5);
+  if(!G.dead) speak('Mission gescheitert' + (reason ? '. '+reason : ''), true);
 }
 function checkWreckMission(){
   var m = G.mission;
@@ -1588,7 +1706,7 @@ function updateRadio(){
   radioGain.gain.setTargetAtTime(radioOn?1:0, AC.currentTime, 0.1);
   bgmGain.gain.setTargetAtTime(bgmOn?0.7:0, AC.currentTime, 0.3);
   if(radioOn){
-    var song = SONGS[G.radio-1];
+    var song = SONGS[Math.max(0,G.radio-2)%SONGS.length];
     while(radioNext < AC.currentTime + 0.12){
       var s = radioStep % 16;
       if(song.bass[s]) tone(midiF(song.bass[s]), song.step*0.9, song.wb||'square', song.vb||0.30, radioNext, radioGain);
@@ -2229,6 +2347,7 @@ function onBossDestroyed(c){
 }
 // ---------- Spieler zu Fuß ----------
 function updatePlayerFoot(dt){
+  G.nitro=Math.min(100,G.nitro+9*dt);
   var rot = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
   player.angle += rot*3.7*dt;
   var fwd = (keys['KeyW']?1:0) - (keys['KeyS']?0.6:0);
@@ -2490,7 +2609,10 @@ function getHud(){
     mInfo: document.getElementById('missionInfo'),
     prompt: document.getElementById('promptEl'),
     toast: document.getElementById('toastEl'),
-    speed: document.getElementById('speedEl')
+    speed: document.getElementById('speedEl'),
+    radio: document.getElementById('radioEl'),
+    nitroWrap: document.getElementById('nitroWrap'),
+    nitro: document.getElementById('nitroFill')
   };
   return hudEls;
 }
@@ -2511,9 +2633,15 @@ function updateHUD(dt){
     h.cond.style.width = clamp(G.inCar.hp/G.inCar.maxHp*100,0,100) + '%';
     h.speed.textContent = Math.abs(Math.round(G.kmh)) + ' km/h';
     h.speed.style.display = 'block';
+    h.nitroWrap.style.display = 'block';
+    h.nitro.style.width = clamp(G.nitro,0,100) + '%';
+    h.radio.style.display = G.radio>0 ? 'block' : 'none';
+    h.radio.textContent = G.radio===1 && shuffleNowIndex>=0 ? '♫ SHUFFLE · '+shuffleTracks[shuffleNowIndex].name : '♫ '+radioName(G.radio);
   } else {
     h.condWrap.style.display = 'none';
     h.speed.style.display = 'none';
+    h.nitroWrap.style.display = 'none';
+    h.radio.style.display = 'none';
   }
   var m = G.mission;
   if(m){
@@ -2574,9 +2702,15 @@ function handleKeyDown(e){
   if(code==='KeyU') jobToggle();
   if(code==='KeyM' && G.started) toggleStats();
   if(code==='KeyR'){
-    G.radio = (G.radio+1)%5;
-    showToast(G.radio===0 ? 'RADIO: AUS' : '♪ ' + SONGS[G.radio-1].name, 2);
+    G.radio = (G.radio+1)%6;
+    showToast(G.radio===0 ? 'RADIO: AUS' : '♪ ' + radioName(G.radio), 2);
+    if(G.radio===1 && !shuffleNow) nextShuffleTrack(false);
+    speak(G.radio===0 ? 'Radio aus' : radioName(G.radio), false);
     radioJingle();
+  }
+  if(code==='KeyV'){
+    if(voiceEnabled){ speak('Sprachausgabe aus', true); voiceEnabled=false; showToast('SPRACHAUSGABE: AUS',2); }
+    else { voiceEnabled=true; speak('Sprachausgabe an', true); showToast('SPRACHAUSGABE: AN',2); }
   }
   if(code==='KeyP' && !G.dead){
     G.paused = !G.paused;
@@ -2597,6 +2731,7 @@ function startGame(){
   G.started = true;
   document.getElementById('startScreen').classList.remove('show');
   showToast('Willkommen in Betonhain! Gelbe Ringe = Aufträge.', 5);
+  speak('Willkommen in Betonhain. Dein Shuffle Radio ist startklar. Gelbe Ringe markieren Aufträge.', true);
 }
 
 var lastTs = 0, uiAccum = 0;
@@ -2761,8 +2896,14 @@ function makeHuman(shirt, pants, skin, isPlayer){
   var parts = [torso,hips,head,hairT,hairB,lLeg,rLeg,lArm,rArm];
   for(var i=0;i<parts.length;i++){ parts[i].castShadow = true; g.add(parts[i]); }
   if(isPlayer){
-    g.add(mkMesh(new THREE.BoxGeometry(0.32,0.08,0.06), lam(0x0e1014), 0, 1.7, 0.18));
-    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.56,0.03), lam(0xe8ecf2), 0, 1.16, 0.175));
+    var heroDark=lam(0x0e1014), heroLight=lam(0xe8ecf2), heroMetal=new THREE.MeshPhongMaterial({color:0xd9b85c,shininess:90});
+    g.add(mkMesh(new THREE.BoxGeometry(0.32,0.08,0.06), heroDark, 0, 1.7, 0.18));
+    g.add(mkMesh(new THREE.BoxGeometry(0.12,0.56,0.03), heroLight, 0, 1.16, 0.175));
+    var lapL=mkMesh(new THREE.BoxGeometry(0.16,0.34,0.035), heroLight,-0.13,1.31,0.18); lapL.rotation.z=-0.28; g.add(lapL);
+    var lapR=mkMesh(new THREE.BoxGeometry(0.16,0.34,0.035), heroLight, 0.13,1.31,0.18); lapR.rotation.z= 0.28; g.add(lapR);
+    g.add(mkMesh(new THREE.BoxGeometry(0.56,0.07,0.035),heroDark,0,0.87,0.17));
+    g.add(mkMesh(new THREE.BoxGeometry(0.08,0.08,0.045),heroMetal,0,0.87,0.19));
+    lArm.add(mkMesh(new THREE.BoxGeometry(0.2,0.055,0.2),heroMetal,0,-0.34,0));
   }
   g.userData = {lLeg:lLeg, rLeg:rLeg, lArm:lArm, rArm:rArm, phase:Math.random()*6};
   return g;
@@ -2960,7 +3101,7 @@ function updateRadio(){
   radioGain.gain.setTargetAtTime(radioOn?1:0, AC.currentTime, 0.1);
   bgmGain.gain.setTargetAtTime(bgmOn?0.7:0, AC.currentTime, 0.3);
   if(radioOn){
-    var song = SONGS[G.radio-1];
+    var song = SONGS[Math.max(0,G.radio-2)%SONGS.length];
     while(radioNext < AC.currentTime + 0.12){
       scheduleStep(song, radioStep, radioNext, radioGain, radioLeadBus, false);
       radioNext += song.step; radioStep++;
@@ -3051,6 +3192,24 @@ function makeCarMesh(color, kind){
   var glowB = new THREE.Sprite(getGlowMat());
   glowB.position.set(0.62, frontY, 2.42); glowB.scale.set(1.15,1.15,1);
   g.add(glowA); g.add(glowB);
+
+  // Gemeinsame Karosserie-Details: Scheiben, Kennzeichen, Auspuff und Türgriffe.
+  var plateMat=new THREE.MeshPhongMaterial({color:0xf2edd4,shininess:35});
+  var chromeMat=new THREE.MeshPhongMaterial({color:0xbfc6ce,shininess:110,specular:0xffffff});
+  g.add(mkMesh(new THREE.BoxGeometry(0.62,0.16,0.045),plateMat,0,0.43,2.44));
+  g.add(mkMesh(new THREE.BoxGeometry(0.62,0.16,0.045),plateMat,0,0.43,-2.44));
+  if(kind!=='van'){
+    g.add(mkMesh(new THREE.BoxGeometry(0.045,0.29,1.25),glassMat,-0.82,1.15,-0.2));
+    g.add(mkMesh(new THREE.BoxGeometry(0.045,0.29,1.25),glassMat, 0.82,1.15,-0.2));
+  }
+  for(var dh=0;dh<4;dh++) g.add(mkMesh(new THREE.BoxGeometry(0.18,0.035,0.055),chromeMat,dh%2?-0.99:0.99,0.91,dh<2?0.42:-0.82));
+  var exhaustGeo=new THREE.CylinderGeometry(0.07,0.09,0.34,8); exhaustGeo.rotateX(Math.PI/2);
+  g.add(mkMesh(exhaustGeo,darkMat,kind==='sport'?0.62:0.72,0.3,-2.38));
+  if(kind==='sport') g.add(mkMesh(exhaustGeo,darkMat,-0.62,0.3,-2.38));
+  if(kind==='van'){
+    g.add(mkMesh(new THREE.BoxGeometry(0.07,0.08,2.25),chromeMat,-0.68,1.87,-0.5));
+    g.add(mkMesh(new THREE.BoxGeometry(0.07,0.08,2.25),chromeMat, 0.68,1.87,-0.5));
+  }
 
   var lightR = null, lightB = null;
   if(kind==='police'){
@@ -3430,7 +3589,7 @@ function updateRadio(){
   radioGain.gain.setTargetAtTime(radioOn?1:0, AC.currentTime, 0.1);
   bgmGain.gain.setTargetAtTime(bgmOn?0.7:0, AC.currentTime, 0.3);
   if(radioOn){
-    var song = SONGS[G.radio-1];
+    var song = SONGS[Math.max(0,G.radio-2)%SONGS.length];
     while(radioNext < AC.currentTime + 0.12){
       scheduleStep(song, radioStep, radioNext, radioRig, false);
       radioNext += song.step; radioStep++;
@@ -3909,7 +4068,7 @@ function updateChirps(dt){
 var RADIO_JINGLES = [[76,79,84],[62,65,69],[64,67,71],[74,74,79]];
 function radioJingle(){
   if(!AC || G.radio === 0) return;
-  var n = RADIO_JINGLES[(G.radio-1) % RADIO_JINGLES.length];
+  var n = RADIO_JINGLES[Math.max(0,G.radio-2) % RADIO_JINGLES.length];
   for(var i=0;i<n.length;i++) tone(midiF(n[i]), 0.1, 'square', 0.35, AC.currentTime + i*0.09, musicBus);
 }
 
@@ -4188,6 +4347,7 @@ function checkAchievements(){
       G.money += a.bonus;
       achFanfare();
       showToast('ERFOLG: ' + a.name + '! +' + a.bonus + ' €', 4);
+      speak('Erfolg freigeschaltet. ' + a.name, false);
     }
   }
 }
