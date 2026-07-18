@@ -1,0 +1,12 @@
+{
+  "name": "asphaltkoenig",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "generate:music": "node tools/generate-music.cjs",
+    "test": "node smoke-test.cjs"
+  },
+  "devDependencies": {
+    "lamejs": "1.2.1"
+  }
+}

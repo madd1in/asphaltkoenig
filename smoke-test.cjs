@@ -88,7 +88,7 @@ async function run() {
     }, null)).sessionId;
 
     const evaluate = async (expression) => {
-      const result = await send('Runtime.evaluate', { expression, returnByValue: true });
+      const result = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
       if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
       return result.result.value;
     };
@@ -116,6 +116,32 @@ async function run() {
     await send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyW', key: 'w' });
     await delay(300);
 
+    const assets = await evaluate(`(() => ({
+      surfaceTilesReady,
+      texturedRoads: Boolean(roadMatG.map && roadMatCrossG.map),
+      texturedBlocks: Boolean(groundMatG.map && padMatG.map && grassMatG.map && plotMatG.map),
+      mp3Failed,
+      radioTracks: mp3Radios.length,
+      mp3Sources: [mp3Bgm].concat(mp3Radios).map((audio) => audio && audio.src),
+      mp3Durations: [mp3Bgm].concat(mp3Radios).map((audio) => audio && audio.duration),
+      pixelRatio: renderer.getPixelRatio()
+    }))()`);
+
+    await evaluate(`(() => {
+      const car = parkedCars[0];
+      G.inCar = car;
+      player.mesh.visible = false;
+      car.x = 0; car.z = -30; car.angle = 0; car.vx = 0; car.vz = 0;
+      car.mesh.position.set(car.x, 0, car.z);
+      car.mesh.rotation.y = 0;
+    })()`);
+    const driveKmh = await evaluate(`(() => {
+      keys.KeyW = true;
+      for (let frame = 0; frame < 54; frame += 1) updatePlayerCar(G.inCar, 1/60);
+      keys.KeyW = false;
+      return Math.abs(G.kmh);
+    })()`);
+
     const after = await evaluate(`(() => ({
       started: G.started,
       paused: G.paused,
@@ -134,10 +160,14 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, errors: errorList };
+    const result = { before, after, moved, driveKmh, assets, errors: errorList };
     console.log(JSON.stringify(result, null, 2));
 
-    if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved || errorList.length) {
+    if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
+      || driveKmh < 55 || !assets.surfaceTilesReady || !assets.texturedRoads || !assets.texturedBlocks
+      || assets.mp3Failed || assets.radioTracks !== 4 || assets.mp3Sources.some((source) => !source.endsWith('.mp3'))
+      || assets.mp3Durations.some((duration) => !Number.isFinite(duration) || duration < 5)
+      || assets.pixelRatio > 1.35 || errorList.length) {
       process.exitCode = 1;
     }
 

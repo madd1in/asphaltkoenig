@@ -127,7 +127,8 @@ var HALFB = 4;           // Straßenlinien bei -4..4  (=> 8x8 Blöcke)
 var ROAD_W = 14;         // Straßenbreite
 var WORLD = HALFB * BLOCK; // 240 -> Welt von -240..240
 
-var scene, camera, renderer, sunLight, hemiLight, roadMatG;
+var scene, camera, renderer, sunLight, hemiLight, roadMatG, roadMatCrossG;
+var groundMatG, padMatG, grassMatG, plotMatG, surfaceTilesReady=false;
 var solids = [];         // Gebäude-AABBs {x0,x1,z0,z1}
 var trafficCars = [];    // Verkehr
 var parkedCars = [];     // geparkte Autos
@@ -192,6 +193,45 @@ function resolveCircleAABB(o, r){
 // ---------- Audio (prozedural, Web Audio) ----------
 var AC=null, musicBus=null, sfxBus=null, radioGain=null, bgmGain=null, noiseBuf=null;
 var radioNext=0, radioStep=0, sirenNext=0, sirenOn=false;
+var mp3Bgm=null, mp3Radios=[], mp3Failed=false;
+
+function makeMp3Track(src){
+  var audio = new Audio(src);
+  audio.loop = true;
+  audio.preload = 'auto';
+  audio.volume = 0;
+  audio.addEventListener('error', function(){ mp3Failed = true; }, {once:true});
+  return audio;
+}
+function initMp3Audio(){
+  if(mp3Bgm || typeof Audio==='undefined') return;
+  mp3Bgm = makeMp3Track('assets/audio/betonhain-night.mp3');
+  mp3Radios = [
+    makeMp3Track('assets/audio/funk-88-8.mp3'),
+    makeMp3Track('assets/audio/radio-chrom.mp3'),
+    makeMp3Track('assets/audio/nachtfalter-fm.mp3'),
+    makeMp3Track('assets/audio/basskeller.mp3')
+  ];
+}
+function syncMp3Audio(){
+  if(mp3Failed) return false;
+  if(!mp3Bgm) initMp3Audio();
+  if(!mp3Bgm) return false;
+  var active = G.started && !G.paused && !G.dead;
+  var desired = active ? (G.inCar && G.radio>0 ? mp3Radios[G.radio-1] : (!G.inCar ? mp3Bgm : null)) : null;
+  var tracks = [mp3Bgm].concat(mp3Radios);
+  for(var i=0;i<tracks.length;i++){
+    var audio = tracks[i], target = audio===desired ? (audio===mp3Bgm?0.34:0.5) : 0;
+    audio.volume += (target-audio.volume)*0.09;
+    if(audio===desired && audio.paused){
+      var promise = audio.play();
+      if(promise && promise.catch) promise.catch(function(){});
+    } else if(audio!==desired && audio.volume<0.005 && !audio.paused){
+      audio.pause();
+    }
+  }
+  return true;
+}
 
 function initAudio(){
   if(AC) return;
@@ -207,6 +247,7 @@ function initAudio(){
   var data = noiseBuf.getChannelData(0);
   for(var i=0;i<data.length;i++) data[i] = Math.random()*2-1;
   radioNext = AC.currentTime + 0.1;
+  initMp3Audio();
 }
 function midiF(m){ return 440*Math.pow(2,(m-69)/12); }
 
@@ -344,11 +385,13 @@ function initScene(){
   camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 900);
   camera.position.set(0, 60, 90);
 
-  renderer = new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 2));
+  renderer = new THREE.WebGLRenderer({antialias:true, powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.35));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
   renderer.outputEncoding = THREE.sRGBEncoding;
   document.getElementById('app').appendChild(renderer.domElement);
 
@@ -366,25 +409,56 @@ function initScene(){
   scene.add(sunLight.target);
 }
 
+function atlasTileTexture(image, col, row, repeatX, repeatY){
+  var tileW = Math.floor(image.width/2), tileH = Math.floor(image.height/2);
+  var inset = Math.max(4, Math.floor(Math.min(tileW,tileH)*0.012));
+  var cv = document.createElement('canvas'); cv.width=512; cv.height=512;
+  var ctx = cv.getContext('2d');
+  ctx.drawImage(image, col*tileW+inset, row*tileH+inset, tileW-inset*2, tileH-inset*2, 0, 0, 512, 512);
+  var tx = new THREE.CanvasTexture(cv);
+  tx.wrapS = THREE.MirroredRepeatWrapping; tx.wrapT = THREE.MirroredRepeatWrapping;
+  tx.repeat.set(repeatX, repeatY);
+  tx.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  tx.encoding = THREE.sRGBEncoding;
+  return tx;
+}
+function applySurfaceTexture(material, texture){
+  material.map = texture;
+  material.color.setHex(0xffffff);
+  material.needsUpdate = true;
+}
+function loadSurfaceTiles(){
+  new THREE.ImageLoader().load('assets/tiles/city-ground-atlas.jpg', function(image){
+    applySurfaceTexture(roadMatG, atlasTileTexture(image,0,0,28,1.3));
+    applySurfaceTexture(roadMatCrossG, atlasTileTexture(image,0,0,1.3,28));
+    applySurfaceTexture(padMatG, atlasTileTexture(image,1,0,4,4));
+    applySurfaceTexture(groundMatG, atlasTileTexture(image,0,1,24,24));
+    applySurfaceTexture(plotMatG, atlasTileTexture(image,0,1,4,4));
+    applySurfaceTexture(grassMatG, atlasTileTexture(image,1,1,4,4));
+    surfaceTilesReady = true;
+  });
+}
+
 // ---------- Stadt-Generierung ----------
 var parkBlocks = [];
 function buildCity(){
   for(var i=0;i<5;i++) winTextures.push(makeWindowTexture(pick(['#3a4250','#454b58','#57414a','#3d4a44','#4a4438']), rand(0.25,0.55)));
 
   // Boden (Beton)
-  var ground = mkMesh(new THREE.PlaneGeometry(1400,1400), lam(0x9a9aa0));
+  groundMatG = lam(0x9a9aa0);
+  var ground = mkMesh(new THREE.PlaneGeometry(1400,1400), groundMatG);
   ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
   scene.add(ground);
 
   // Straßen (zwei Achsen, minimal versetzte Höhe gegen Z-Fighting)
   roadMatG = lam(0x3c3c44);
-  var roadMat = roadMatG;
+  roadMatCrossG = lam(0x3c3c44);
   var span = WORLD*2 + ROAD_W + 10;
   for(var k=-HALFB;k<=HALFB;k++){
     var c = k*BLOCK;
-    var rz = mkMesh(new THREE.PlaneGeometry(span, ROAD_W), roadMat, 0, 0.02, c);
+    var rz = mkMesh(new THREE.PlaneGeometry(span, ROAD_W), roadMatG, 0, 0.02, c);
     rz.rotation.x = -Math.PI/2; rz.receiveShadow=true; scene.add(rz);
-    var rx = mkMesh(new THREE.PlaneGeometry(ROAD_W, span), roadMat, c, 0.03, 0);
+    var rx = mkMesh(new THREE.PlaneGeometry(ROAD_W, span), roadMatCrossG, c, 0.03, 0);
     rx.rotation.x = -Math.PI/2; rx.receiveShadow=true; scene.add(rx);
   }
 
@@ -411,15 +485,15 @@ function buildCity(){
   scene.add(dashInst);
 
   // Blöcke: Gehweg-Pad + Bebauung oder Park
-  var padMat = lam(0xb2b2b8), grassMat = lam(0x5e7a44), plotMat = lam(0x7c7c82);
+  padMatG = lam(0xb2b2b8); grassMatG = lam(0x5e7a44); plotMatG = lam(0x7c7c82);
   var roofMat = lam(0x44464e);
   for(var bx=0;bx<HALFB*2;bx++) for(var bz=0;bz<HALFB*2;bz++){
     var cx = -WORLD + BLOCK/2 + bx*BLOCK;
     var cz = -WORLD + BLOCK/2 + bz*BLOCK;
     var isPark = Math.random() < 0.14;
-    var pad = mkMesh(new THREE.PlaneGeometry(46,46), padMat, cx, 0.045, cz);
+    var pad = mkMesh(new THREE.PlaneGeometry(46,46), padMatG, cx, 0.045, cz);
     pad.rotation.x=-Math.PI/2; pad.receiveShadow=true; scene.add(pad);
-    var plot = mkMesh(new THREE.PlaneGeometry(38,38), isPark?grassMat:plotMat, cx, 0.055, cz);
+    var plot = mkMesh(new THREE.PlaneGeometry(38,38), isPark?grassMatG:plotMatG, cx, 0.055, cz);
     plot.rotation.x=-Math.PI/2; plot.receiveShadow=true; scene.add(plot);
 
     if(isPark){
@@ -444,6 +518,8 @@ function buildCity(){
       addBuilding(cx, cz+9.5, rand(26,32), rand(12,15), rand(12,30));
     }
   }
+
+  loadSurfaceTiles();
 
   function addBuilding(x, z, w, d, h){
     var tx = winTextures[randi(0,winTextures.length-1)].clone();
@@ -939,23 +1015,23 @@ function updatePlayerCar(c, dt){
   var steer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
   var hand = keys['Space']?1:0;
 
-  var baseF = c.kind==='sport' ? 40 : ((c.kind==='van'||c.kind==='ambulance') ? 27 : 34);
-  var baseA = c.kind==='sport' ? 19 : ((c.kind==='van'||c.kind==='ambulance') ? 12 : 15);
-  var maxF = c.tuned ? baseF*1.18 : baseF, maxR = -9, acc = c.tuned ? baseA*1.25 : baseA;
+  var baseF = c.kind==='sport' ? 46 : ((c.kind==='van'||c.kind==='ambulance') ? 33 : 40);
+  var baseA = c.kind==='sport' ? 27 : ((c.kind==='van'||c.kind==='ambulance') ? 19 : 23);
+  var maxF = c.tuned ? baseF*1.2 : baseF, maxR = -11, acc = c.tuned ? baseA*1.22 : baseA;
   if(throttle) { c.vx += fwdX*acc*dt; c.vz += fwdZ*acc*dt; }
   if(brake){
-    if(speedAlong > 1){ c.vx -= fwdX*30*dt; c.vz -= fwdZ*30*dt; }
-    else { c.vx -= fwdX*8*dt; c.vz -= fwdZ*8*dt; }
+    if(speedAlong > 1){ c.vx -= fwdX*36*dt; c.vz -= fwdZ*36*dt; }
+    else { c.vx -= fwdX*10*dt; c.vz -= fwdZ*10*dt; }
   }
   // Lenken (skaliert mit Tempo, invertiert beim Rueckwaertsfahren)
-  var sf = clamp(speedAlong/9, -1, 1);
-  c.angle += steer * 1.9 * sf * dt;
+  var sf = clamp(speedAlong/6.5, -1, 1);
+  c.angle += steer * 2.25 * sf * dt;
   // Grip: Quergeschwindigkeit daempfen
   fwdX = Math.sin(c.angle); fwdZ = Math.cos(c.angle);
   speedAlong = c.vx*fwdX + c.vz*fwdZ;
   speedAlong = clamp(speedAlong, maxR, maxF);
   var latX = c.vx - fwdX*speedAlong, latZ = c.vz - fwdZ*speedAlong;
-  var grip = hand ? 0.985 : (0.86 + WEATHER.rain*0.07);
+  var grip = hand ? 0.988 : (0.82 + WEATHER.rain*0.09);
   var g2 = Math.pow(grip, dt*60);
   latX *= g2; latZ *= g2;
   if(hand && (latX*latX+latZ*latZ) > 9 && c.y <= 0){
@@ -965,7 +1041,7 @@ function updatePlayerCar(c, dt){
     spawnSkid(c.x - fwdX*1.45 - rxs*0.8, c.z - fwdZ*1.45 - rzs*0.8, c.angle);
   }
   // Rollwiderstand
-  var drag = Math.pow(hand?0.985:0.995, dt*60);
+  var drag = Math.pow(hand?0.99:0.9985, dt*60);
   speedAlong *= drag;
   c.vx = fwdX*speedAlong + latX;
   c.vz = fwdZ*speedAlong + latZ;
@@ -1973,7 +2049,11 @@ function updateWeather(dt){
     WEATHER.flash = Math.max(0, WEATHER.flash - dt*3.5);
   }
   scene.fog.color.copy(scene.background);
-  if(roadMatG){ roadMatG.color.setHex(0x3c3c44); roadMatG.color.multiplyScalar(1 - r*0.35); }
+  if(roadMatG){
+    var roadBase = surfaceTilesReady ? 0xffffff : 0x3c3c44;
+    roadMatG.color.setHex(roadBase); roadMatG.color.multiplyScalar(1 - r*0.35);
+    if(roadMatCrossG){ roadMatCrossG.color.setHex(roadBase); roadMatCrossG.color.multiplyScalar(1 - r*0.35); }
+  }
   if(glowMatShared) glowMatShared.opacity = NIGHT*0.75;
   updateRain(dt, r);
 }
@@ -2150,9 +2230,9 @@ function onBossDestroyed(c){
 // ---------- Spieler zu Fuß ----------
 function updatePlayerFoot(dt){
   var rot = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
-  player.angle += rot*3.1*dt;
+  player.angle += rot*3.7*dt;
   var fwd = (keys['KeyW']?1:0) - (keys['KeyS']?0.6:0);
-  var sp = (keys['ShiftLeft']||keys['ShiftRight']) ? 8.6 : 5.0;
+  var sp = (keys['ShiftLeft']||keys['ShiftRight']) ? 10.2 : 5.8;
   player.speed = Math.abs(fwd*sp);
   player.x += Math.sin(player.angle)*fwd*sp*dt;
   player.z += Math.cos(player.angle)*fwd*sp*dt;
@@ -2328,12 +2408,14 @@ function updateCamera(dt){
   camera.fov += (tf - camera.fov) * clamp(4*dt, 0, 1);
   camera.updateProjectionMatrix();
 }
+var shadowFrame = 0;
 function updateSun(){
   var px = G.started ? (G.inCar?G.inCar.x:player.x) : 0;
   var pz = G.started ? (G.inCar?G.inCar.z:player.z) : 0;
   sunLight.position.set(px+90, 140, pz+50);
   sunLight.target.position.set(px, 0, pz);
   sunLight.target.updateMatrixWorld();
+  if(G.started && (++shadowFrame%6===0)) renderer.shadowMap.needsUpdate = true;
 }
 
 // ---------- Minimap ----------
@@ -2517,7 +2599,7 @@ function startGame(){
   showToast('Willkommen in Betonhain! Gelbe Ringe = Aufträge.', 5);
 }
 
-var lastTs = 0;
+var lastTs = 0, uiAccum = 0;
 function loop(ts){
   requestAnimationFrame(loop);
   var dt = Math.min(0.05, (ts-lastTs)/1000 || 0.016);
@@ -2558,8 +2640,12 @@ function loop(ts){
   updateRadio();
   updateCamera(dt);
   updateSun();
-  drawMinimap();
-  updateHUD(dt);
+  uiAccum += dt;
+  if(uiAccum >= 0.05){
+    drawMinimap();
+    updateHUD(uiAccum);
+    uiAccum = 0;
+  }
   renderer.render(scene, camera);
 }
 
@@ -3335,6 +3421,7 @@ function scheduleStep(song, stepN, when, rig, soft){
   }
 }
 function updateRadio(){
+  if(syncMp3Audio()) return;
   if(!AC) return;
   if(!radioRig){ radioRig = makeRig(radioGain); bgmRig = makeRig(bgmGain); }
   var act = G.started && !G.paused && !G.dead;
