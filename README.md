@@ -2,6 +2,14 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5
+
+- analoge Touch-Steuerung zum Laufen, Sprinten, Beschleunigen, Bremsen und Lenken
+- mobile Buttons für Nitro, Drift, Ein-/Aussteigen, Kontextaktion, Radio, Nebenjob, Tuning und Pause
+- responsives Hoch-/Querformat-Layout mit Safe-Area-Unterstützung und einem Touch-tauglichen Pause-Menü
+- automatisches Mobile-Profil mit reduzierter Pixelratio, deaktivierten Schatten, kürzerem Sichtbereich und kleineren Effekt-/NPC-Budgets
+- inaktive Bremsspuren werden nicht mehr gerendert; dadurch nochmals deutlich weniger Draw Calls auf Desktop und Mobile
+
 ## Neu in Version 1.4
 
 - Gebäude, Parkbäume, Neonschilder, Litfaßsäulen und Blitzer werden in wenigen GPU-Batches gezeichnet
@@ -47,6 +55,8 @@ Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 - `R`: Radiosender wechseln
 - `V`: Sprachausgabe an/aus
 - `P`: Pause
+
+Auf Smartphones erscheint nach dem Start automatisch die Touch-Steuerung. Der linke Stick arbeitet analog; weit nach vorne schieben aktiviert beim Laufen automatisch den Sprint.
 
 ## Lokaler Test
 

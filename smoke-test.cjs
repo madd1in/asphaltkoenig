@@ -147,6 +147,30 @@ async function run() {
       }
       requestAnimationFrame(tick);
     })`);
+    const mobileControls = await evaluate(`(() => {
+      const x0=player.x, z0=player.z, a0=player.angle;
+      setTouchAxis(0.55,-0.85,true);
+      for(let frame=0;frame<12;frame+=1) updatePlayerFoot(1/60);
+      const analogMoved=Math.hypot(player.x-x0,player.z-z0)>0.1;
+      const analogAxis={x:TOUCH_AXIS.x,y:TOUCH_AXIS.y,active:TOUCH_AXIS.active};
+      releaseTouchStick();
+      player.x=x0; player.z=z0; player.angle=a0; player.mesh.position.set(x0,0,z0); player.mesh.rotation.y=a0;
+      const nitroButton=document.getElementById('touchNitro');
+      nitroButton.dispatchEvent(new PointerEvent('pointerdown',{pointerId:91,bubbles:true}));
+      const holdStarted=keys.KeyQ===true;
+      nitroButton.dispatchEvent(new PointerEvent('pointerup',{pointerId:91,bubbles:true}));
+      const holdReleased=keys.KeyQ===false;
+      const pausedBefore=G.paused;
+      fireMobileTap('KeyP'); const pausedByTouch=G.paused;
+      fireMobileTap('KeyP'); const resumedByTouch=!G.paused;
+      return {
+        controls:Boolean(document.getElementById('touchControls')),
+        buttons:document.querySelectorAll('#touchControls button').length,
+        setupType:typeof setupTouchControls,
+        analogMoved,analogAxis,released:!TOUCH_AXIS.active,
+        holdStarted,holdReleased,pausedBefore,pausedByTouch,resumedByTouch
+      };
+    })()`);
     const startPosition = await evaluate(`({ x: player.x, z: player.z })`);
     await send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w' });
     await delay(900);
@@ -183,6 +207,9 @@ async function run() {
       buildingBatches: buildingMeshes.length,
       treeBatches: treeMeshes.length,
       neonBatches: neonMats.length,
+      touchControls: Boolean(document.getElementById('touchControls')),
+      touchButtons: document.querySelectorAll('#touchControls button').length,
+      inactiveSkidsHidden: skidPool.every((skid) => skid.life > 0 || !skid.mesh.visible),
       pixelRatio: renderer.getPixelRatio()
     }))()`);
 
@@ -252,11 +279,19 @@ async function run() {
       frameTime: G.time
     }))()`);
 
+    await send('Emulation.setDeviceMetricsOverride', {
+      width: 390, height: 844, deviceScaleFactor: 3, mobile: true,
+      screenWidth: 390, screenHeight: 844
+    });
+    await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await evaluate(`document.body.classList.add('touch-device','game-started'); updateTouchLabels()`);
+    await delay(350);
     const screenshot = await send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, assets, errors: errorList };
+    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, assets, errors: errorList };
+    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchButtons=${mobileControls.buttons} errors=${errorList.length}`);
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -276,9 +311,13 @@ async function run() {
       || assets.shuffleSources.some((source) => !source.endsWith('.mp3'))
       || assets.mp3Durations.some((duration) => !Number.isFinite(duration) || duration < 5)
       || assets.shuffleDurations.some((duration) => !Number.isFinite(duration) || duration < 30)
-      || performanceSample.fps < 5 || performanceSample.callsMedian > 380
+      || performanceSample.fps < 5 || performanceSample.callsMedian > 260
       || performanceSample.geometries > 160 || after.sceneChildren > 520
       || assets.buildingBatches > 5 || assets.treeBatches > 4 || assets.neonBatches > 4
+      || !assets.touchControls || assets.touchButtons !== 8 || !assets.inactiveSkidsHidden
+      || mobileControls.setupType !== 'function' || !mobileControls.analogMoved || !mobileControls.analogAxis.active
+      || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
+      || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;

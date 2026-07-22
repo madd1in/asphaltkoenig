@@ -2,10 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>ASPHALTKÖNIG</title>
 <style>
-  html,body{margin:0;padding:0;overflow:hidden;background:#1a1c22;font-family:'Segoe UI',system-ui,sans-serif;user-select:none;}
+  html,body{margin:0;padding:0;overflow:hidden;background:#1a1c22;font-family:'Segoe UI',system-ui,sans-serif;user-select:none;touch-action:none;overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;}
   #app{position:fixed;inset:0;}
   #vignette{position:fixed;inset:0;pointer-events:none;z-index:4;
     background:radial-gradient(ellipse at center, transparent 52%, rgba(6,7,12,0.44) 100%);}
@@ -56,6 +56,48 @@
   #overTitle{font-size:52px;font-weight:900;color:#ff5a4e;margin:0;text-shadow:0 4px 18px rgba(0,0,0,0.6);}
   #overSub{color:#dfe3ea;font-size:16px;margin-top:10px;}
   #pauseScreen p{font-size:44px;font-weight:900;color:#fff;letter-spacing:6px;}
+  #resumeBtn{font-size:18px;font-weight:900;letter-spacing:2px;padding:13px 34px;border:0;border-radius:12px;background:#ffd24a;color:#302006;cursor:pointer;}
+  #mobileStartHint{display:none;color:#9fe6ff;font-size:13px;font-weight:800;letter-spacing:.4px;margin:-12px 0 18px;text-align:center;}
+  #touchControls{position:fixed;inset:0;z-index:8;display:none;pointer-events:none;touch-action:none;}
+  .touch-device.game-started #touchControls{display:block;}
+  #touchStickWrap{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:max(18px,env(safe-area-inset-bottom));width:138px;text-align:center;color:rgba(255,255,255,.7);font-size:9px;font-weight:800;letter-spacing:1px;}
+  #touchStick{width:118px;height:118px;margin:0 auto 5px;border-radius:50%;pointer-events:auto;touch-action:none;border:2px solid rgba(255,255,255,.3);background:radial-gradient(circle,rgba(255,255,255,.13),rgba(10,13,20,.5));box-shadow:inset 0 0 24px rgba(0,0,0,.35),0 6px 22px rgba(0,0,0,.28);backdrop-filter:blur(3px);position:relative;}
+  #touchStickKnob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;border-radius:50%;background:linear-gradient(145deg,rgba(255,224,120,.95),rgba(224,138,42,.92));box-shadow:0 4px 15px rgba(0,0,0,.4);transform:translate3d(0,0,0);will-change:transform;}
+  #touchActions{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));width:190px;pointer-events:none;}
+  #touchUtility{display:flex;justify-content:flex-end;gap:7px;margin-bottom:9px;}
+  .touchBtn{border:1px solid rgba(255,255,255,.3);background:rgba(14,18,26,.72);color:#fff;backdrop-filter:blur(4px);box-shadow:0 5px 18px rgba(0,0,0,.28);font-family:inherit;font-weight:900;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;}
+  .touchBtn:active,.touchBtn.pressed{transform:scale(.94);filter:brightness(1.2);}
+  .touchMini{width:40px;height:34px;border-radius:12px;font-size:9px;letter-spacing:.3px;}
+  #touchActionGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:end;}
+  .touchAction{height:62px;border-radius:50%;font-size:10px;letter-spacing:.5px;}
+  #touchNitro{background:linear-gradient(145deg,rgba(32,205,235,.88),rgba(100,76,220,.88));}
+  #touchEnter{background:linear-gradient(145deg,rgba(255,210,74,.92),rgba(218,119,28,.92));color:#302006;}
+  .touch-drive{opacity:.38;pointer-events:none;}
+  .driving .touch-drive{opacity:1;pointer-events:auto;}
+  @media (max-width:760px), (pointer:coarse){
+    #hudTL{top:max(7px,env(safe-area-inset-top));left:max(7px,env(safe-area-inset-left));gap:5px;transform:scale(.82);transform-origin:top left;}
+    #minimap{width:112px;height:112px;top:max(7px,env(safe-area-inset-top));right:max(7px,env(safe-area-inset-right));}
+    #radioEl{top:124px;right:max(7px,env(safe-area-inset-right));max-width:180px;font-size:9px;}
+    #speedEl{top:166px;bottom:auto;right:max(14px,env(safe-area-inset-right));font-size:19px;}
+    #nitroWrap{top:196px;bottom:auto;right:max(12px,env(safe-area-inset-right));transform:scale(.82);transform-origin:top right;}
+    #missionPanel{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 220px);min-width:0;width:min(76vw,340px);font-size:11px;padding:6px 9px;}
+    #missionTitle{font-size:12px;} #missionInfo{font-size:10px;}
+    .touch-device #promptEl{display:none!important;}
+    #toastEl{top:max(8px,env(safe-area-inset-top));max-width:58vw;text-align:center;font-size:11px;}
+    #hintEl{display:none;}
+    #gameTitle{font-size:clamp(34px,11vw,52px);}
+    #gameSub{font-size:11px;letter-spacing:3px;margin-bottom:18px;}
+    #ctrlBox{display:none;}
+    #mobileStartHint{display:block;max-width:330px;padding:0 18px;}
+    #startBtn{font-size:17px;padding:13px 42px;}
+    #vignette{opacity:.65;}
+  }
+  @media (max-height:520px) and (orientation:landscape){
+    #touchStickWrap{transform:scale(.78);transform-origin:bottom left;}
+    #touchActions{transform:scale(.78);transform-origin:bottom right;}
+    #hudTL{transform:scale(.68);} #minimap{width:88px;height:88px;}
+    #radioEl{top:100px;} #speedEl{top:128px;} #nitroWrap{top:154px;} #missionPanel{bottom:8px;left:38%;width:42vw;}
+  }
 </style>
 </head>
 <body>
@@ -90,6 +132,27 @@
 <div id="toastEl" class="chip"></div>
 <div id="hintEl">WASD Bewegen/Lenken · SHIFT Sprint · E Ein-/Aussteigen · F Schlagen/Snack · LEER Handbremse · Q Nitro · H Hupe · R Radio · V Stimme · P Pause<br>Gelb-schwarze Rampen = Stunt-Bonus · 8 Kronen ♛ versteckt · Werkstatt (blaues ⚙): H Reparatur / T Tuning · Grüne Geisterpfeile führen zum Ziel · Blitzer ab 60 km/h · U Nebenjob · M Dossier · N Radar-Zoom<br>🏁 Ringe = Zeitrennen (Bestzeiten im Dossier) · Würstlstände heilen für 15 € · 11 Erfolge freischaltbar</div>
 
+<div id="touchControls" aria-label="Mobile Spielsteuerung">
+  <div id="touchStickWrap">
+    <div id="touchStick" role="group" aria-label="Analoger Steuerknüppel"><div id="touchStickKnob"></div></div>
+    <span>BEWEGEN · LENKEN</span>
+  </div>
+  <div id="touchActions">
+    <div id="touchUtility">
+      <button class="touchBtn touchMini" data-tap="KeyR" aria-label="Radiosender wechseln">RADIO</button>
+      <button class="touchBtn touchMini" data-tap="KeyU" aria-label="Nebenjob">JOB</button>
+      <button class="touchBtn touchMini" data-tap="KeyT" aria-label="Fahrzeug tunen">TUNE</button>
+      <button class="touchBtn touchMini" data-tap="KeyP" aria-label="Pause">PAUSE</button>
+    </div>
+    <div id="touchActionGrid">
+      <button id="touchNitro" class="touchBtn touchAction touch-drive" data-hold="KeyQ">NITRO</button>
+      <button id="touchDrift" class="touchBtn touchAction touch-drive" data-hold="Space">DRIFT</button>
+      <button id="touchContext" class="touchBtn touchAction">AKTION</button>
+      <button id="touchEnter" class="touchBtn touchAction">EIN/AUS</button>
+    </div>
+  </div>
+</div>
+
 <div id="startScreen" class="screen show">
   <h1 id="gameTitle">ASPHALTKÖNIG</h1>
   <div id="gameSub">Großstadt · Blech · Beute</div>
@@ -108,13 +171,14 @@
     Neu: Nebenjobs! Steig in Taxi, Rettungswagen oder Streifenwagen und drück U.<br>
     Dazu: Zeitrennen an 🏁-Ringen, Würstlstände und 11 Erfolge.
   </div>
+  <div id="mobileStartHint">Links analog bewegen und lenken · rechts Nitro, Drift und Kontextaktionen</div>
   <button id="startBtn">STARTEN</button>
 </div>
 <div id="overScreen" class="screen">
   <p id="overTitle"></p>
   <div id="overSub"></div>
 </div>
-<div id="pauseScreen" class="screen"><p>PAUSE</p></div>
+<div id="pauseScreen" class="screen"><p>PAUSE</p><button id="resumeBtn">WEITER</button></div>
 <div id="statsScreen" class="screen">
   <div id="statsBox" class="chip" style="min-width:320px;text-align:left;font-size:14px;line-height:2.0;padding:18px 24px;"></div>
 </div>
@@ -489,16 +553,16 @@ function makeTextSprite(txt, bg, fg, scale){
 function initScene(){
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf2a361);
-  scene.fog = new THREE.Fog(0xf2a361, 105, 285);
+  scene.fog = new THREE.Fog(0xf2a361, IS_MOBILE?92:105, IS_MOBILE?235:285);
 
   camera = new THREE.PerspectiveCamera(62, window.innerWidth/window.innerHeight, 0.1, 900);
   camera.position.set(0, 60, 90);
 
   var deviceScale=window.devicePixelRatio||1;
-  renderer = new THREE.WebGLRenderer({antialias:deviceScale<=1.1, powerPreference:'high-performance', precision:'mediump'});
-  renderer.setPixelRatio(Math.min(deviceScale, 1.0));
+  renderer = new THREE.WebGLRenderer({antialias:!IS_MOBILE && deviceScale<=1.1, powerPreference:'high-performance', precision:'mediump'});
+  renderer.setPixelRatio(Math.min(deviceScale, IS_MOBILE?0.8:1.0));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !IS_MOBILE;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false;
   renderer.shadowMap.needsUpdate = true;
@@ -509,7 +573,7 @@ function initScene(){
   scene.add(hemiLight);
   sunLight = new THREE.DirectionalLight(0xffd9a0, 1.15);
   sunLight.position.set(120, 150, 60);
-  sunLight.castShadow = true;
+  sunLight.castShadow = !IS_MOBILE;
   sunLight.shadow.mapSize.width = 512; sunLight.shadow.mapSize.height = 512;
   sunLight.shadow.camera.left=-95; sunLight.shadow.camera.right=95;
   sunLight.shadow.camera.top=95; sunLight.shadow.camera.bottom=-95;
@@ -894,7 +958,8 @@ function laneCoord(d, roadC){
 }
 
 function spawnTraffic(){
-  for(var i=0;i<18;i++){
+  var trafficCount=IS_MOBILE?14:18;
+  for(var i=0;i<trafficCount;i++){
     var d = randi(0,3);
     var roadIdx = randi(-HALFB, HALFB);
     var roadC = roadIdx*BLOCK;
@@ -935,7 +1000,8 @@ var PED_SHIRTS = [0xc0605a,0x5a7fc0,0x6db07a,0xc0a35a,0x9a6fb8,0x707a86,0xd08a9a
 var PED_PANTS  = [0x33404e,0x4e4438,0x2c3038,0x5a4a5e];
 var PED_SKINS  = [0xe8c39e,0xd9a878,0xb07b4f,0x8a5a34];
 function spawnPeds(){
-  for(var i=0;i<32;i++){
+  var pedCount=IS_MOBILE?24:32;
+  for(var i=0;i<pedCount;i++){
     var bx = randi(0,HALFB*2-1), bz = randi(0,HALFB*2-1);
     var cx = -WORLD + BLOCK/2 + bx*BLOCK, cz = -WORLD + BLOCK/2 + bz*BLOCK;
     var s = 21;
@@ -1214,9 +1280,11 @@ function updateTraffic(dt){
 function updatePlayerCar(c, dt){
   var fwdX = Math.sin(c.angle), fwdZ = Math.cos(c.angle);
   var speedAlong = c.vx*fwdX + c.vz*fwdZ;
-  var throttle = keys['KeyW']?1:0;
-  var brake = keys['KeyS']?1:0;
-  var steer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
+  var touchY=TOUCH_AXIS.active?TOUCH_AXIS.y:0;
+  var throttle = Math.max(keys['KeyW']?1:0,Math.max(0,-touchY));
+  var brake = Math.max(keys['KeyS']?1:0,Math.max(0,touchY));
+  var keySteer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
+  var steer = TOUCH_AXIS.active ? -TOUCH_AXIS.x : keySteer;
   var hand = keys['Space']?1:0;
 
   var baseF = c.kind==='sport' ? 46 : ((c.kind==='van'||c.kind==='ambulance') ? 33 : 40);
@@ -2218,16 +2286,18 @@ function buildExtras2(){
   // Regen (instanzierte Streifen um die Kamera)
   var rg = new THREE.BoxGeometry(0.035, 0.9, 0.035);
   rainMat = new THREE.MeshBasicMaterial({color:0xaac6de, transparent:true, opacity:0});
-  rainInst = new THREE.InstancedMesh(rg, rainMat, 260);
+  var rainCount=IS_MOBILE?140:260;
+  rainInst = new THREE.InstancedMesh(rg, rainMat, rainCount);
   rainInst.visible = false;
-  for(var i=0;i<260;i++) rainDrops.push({x:rand(-35,35), y:rand(0,38), z:rand(-35,35)});
+  for(var i=0;i<rainCount;i++) rainDrops.push({x:rand(-35,35), y:rand(0,38), z:rand(-35,35)});
   scene.add(rainInst);
 
   // Skidmark-Pool
   var sg = new THREE.PlaneGeometry(0.3, 1.05); sg.rotateX(-Math.PI/2);
-  for(var s=0;s<140;s++){
+  var skidCount=IS_MOBILE?70:140;
+  for(var s=0;s<skidCount;s++){
     var sm = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({color:0x14151a, transparent:true, opacity:0, depthWrite:false}));
-    sm.position.y = 0.045;
+    sm.position.y = 0.045; sm.visible=false;
     scene.add(sm);
     skidPool.push({mesh:sm, life:0});
   }
@@ -2315,6 +2385,7 @@ function spawnSkid(x, z, ang){
   s.mesh.position.set(x, 0.045, z);
   s.mesh.rotation.y = ang;
   s.mesh.material.opacity = 0.4;
+  s.mesh.visible = true;
   s.life = 4;
 }
 function updateSkids(dt){
@@ -2323,6 +2394,7 @@ function updateSkids(dt){
     if(s.life > 0){
       s.life -= dt;
       s.mesh.material.opacity = Math.max(0, s.mesh.material.opacity - dt*0.1);
+      if(s.life<=0) s.mesh.visible=false;
     }
   }
 }
@@ -2456,10 +2528,16 @@ function onBossDestroyed(c){
 // ---------- Spieler zu Fuß ----------
 function updatePlayerFoot(dt){
   G.nitro=Math.min(100,G.nitro+9*dt);
-  var rot = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
+  var rot = TOUCH_AXIS.active ? -TOUCH_AXIS.x : ((keys['KeyA']?1:0) - (keys['KeyD']?1:0));
   player.angle += rot*3.7*dt;
   var fwd = (keys['KeyW']?1:0) - (keys['KeyS']?0.6:0);
-  var sp = (keys['ShiftLeft']||keys['ShiftRight']) ? 10.2 : 5.8;
+  if(TOUCH_AXIS.active){
+    var touchFwd=-TOUCH_AXIS.y;
+    if(touchFwd<0) touchFwd*=0.6;
+    if(Math.abs(touchFwd)>Math.abs(fwd)) fwd=touchFwd;
+  }
+  var touchSprint=TOUCH_AXIS.active && -TOUCH_AXIS.y>0.82;
+  var sp = (keys['ShiftLeft']||keys['ShiftRight']||touchSprint) ? 10.2 : 5.8;
   player.speed = Math.abs(fwd*sp);
   player.x += Math.sin(player.angle)*fwd*sp*dt;
   player.z += Math.cos(player.angle)*fwd*sp*dt;
@@ -2729,6 +2807,7 @@ function showToast(msg, sec){
 }
 function updateHUD(dt){
   var h = getHud();
+  updateTouchLabels();
   G.record = Math.max(G.record, G.money);
   h.money.textContent = G.money + ' €';
   h.record.textContent = 'Rekord ' + G.record + ' €';
@@ -2796,6 +2875,71 @@ function updateHUD(dt){
 
 // ---------- Eingabe ----------
 var KEY_ALIAS = {ArrowUp:'KeyW', ArrowDown:'KeyS', ArrowLeft:'KeyA', ArrowRight:'KeyD'};
+var IS_MOBILE = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints>0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+var TOUCH_AXIS = {x:0,y:0,active:false,pointerId:null};
+function setTouchAxis(x,y,active){
+  var len=Math.sqrt(x*x+y*y);
+  if(len>1){ x/=len; y/=len; }
+  TOUCH_AXIS.x=Math.abs(x)<0.12?0:x;
+  TOUCH_AXIS.y=Math.abs(y)<0.12?0:y;
+  TOUCH_AXIS.active=active!==false && (TOUCH_AXIS.x!==0 || TOUCH_AXIS.y!==0);
+  var knob=document.getElementById('touchStickKnob');
+  if(knob) knob.style.transform='translate3d('+(TOUCH_AXIS.x*38).toFixed(1)+'px,'+(TOUCH_AXIS.y*38).toFixed(1)+'px,0)';
+}
+function releaseTouchStick(){ TOUCH_AXIS.pointerId=null; setTouchAxis(0,0,false); }
+function mobileHaptic(){ if(IS_MOBILE && navigator.vibrate) navigator.vibrate(8); }
+function fireMobileTap(code){
+  mobileHaptic();
+  handleKeyDown({code:code,preventDefault:function(){}});
+  handleKeyUp({code:code});
+}
+function updateTouchLabels(){
+  document.body.classList.toggle('driving',!!G.inCar);
+  var context=document.getElementById('touchContext'), enter=document.getElementById('touchEnter');
+  if(context) context.textContent=G.inCar?(shopNearby()?'REPARATUR':'HUPE'):(snackPromptText()?'SNACK':'AKTION');
+  if(enter) enter.textContent=G.inCar?'AUSSTEIGEN':'EINSTEIGEN';
+}
+function setupTouchControls(){
+  document.body.classList.toggle('touch-device',IS_MOBILE);
+  var stick=document.getElementById('touchStick');
+  function moveStick(e){
+    if(TOUCH_AXIS.pointerId!==e.pointerId) return;
+    var rect=stick.getBoundingClientRect(), radius=rect.width*0.36;
+    setTouchAxis((e.clientX-(rect.left+rect.width/2))/radius,(e.clientY-(rect.top+rect.height/2))/radius,true);
+    e.preventDefault();
+  }
+  stick.addEventListener('pointerdown',function(e){
+    TOUCH_AXIS.pointerId=e.pointerId;
+    try{ stick.setPointerCapture(e.pointerId); }catch(ignore){}
+    moveStick(e); mobileHaptic();
+  });
+  stick.addEventListener('pointermove',moveStick);
+  function endStick(e){ if(TOUCH_AXIS.pointerId===e.pointerId){ releaseTouchStick(); e.preventDefault(); } }
+  stick.addEventListener('pointerup',endStick); stick.addEventListener('pointercancel',endStick);
+  var holdButtons=document.querySelectorAll('[data-hold]');
+  for(var hi=0;hi<holdButtons.length;hi++)(function(btn){
+    var code=btn.dataset.hold;
+    function release(e){ keys[code]=false; btn.classList.remove('pressed'); if(e) e.preventDefault(); }
+    btn.addEventListener('pointerdown',function(e){
+      keys[code]=true; btn.classList.add('pressed'); mobileHaptic();
+      try{ btn.setPointerCapture(e.pointerId); }catch(ignore){}
+      e.preventDefault();
+    });
+    btn.addEventListener('pointerup',release); btn.addEventListener('pointercancel',release); btn.addEventListener('lostpointercapture',release);
+  })(holdButtons[hi]);
+  var tapButtons=document.querySelectorAll('[data-tap]');
+  for(var ti=0;ti<tapButtons.length;ti++) tapButtons[ti].addEventListener('pointerdown',function(e){ fireMobileTap(this.dataset.tap); e.preventDefault(); });
+  document.getElementById('touchContext').addEventListener('pointerdown',function(e){ fireMobileTap(G.inCar?'KeyH':'KeyF'); e.preventDefault(); });
+  document.getElementById('touchEnter').addEventListener('pointerdown',function(e){ fireMobileTap('KeyE'); e.preventDefault(); });
+  document.getElementById('resumeBtn').addEventListener('click',function(){ if(G.paused) fireMobileTap('KeyP'); });
+  document.getElementById('touchControls').addEventListener('contextmenu',function(e){ e.preventDefault(); });
+  document.addEventListener('visibilitychange',function(){
+    if(document.hidden && G.started && !G.dead && !G.paused){
+      G.paused=true; document.getElementById('pauseScreen').classList.add('show');
+    }
+    keys.KeyQ=false; keys.Space=false; releaseTouchStick();
+  });
+}
 function handleKeyDown(e){
   var code = e.code;
   if(KEY_ALIAS[code]) code = KEY_ALIAS[code];
@@ -2837,6 +2981,7 @@ function startGame(){
   initAudio();
   if(AC && AC.resume) AC.resume();
   G.started = true;
+  document.body.classList.add('game-started');
   document.getElementById('startScreen').classList.remove('show');
   showToast('Willkommen in Betonhain! Gelbe Ringe = Aufträge.', 5);
   speak('Willkommen in Betonhain. Dein Shuffle Radio ist startklar. Gelbe Ringe markieren Aufträge.', true);
@@ -2850,7 +2995,7 @@ function enablePerformanceMode(){
   renderer.shadowMap.enabled=false;
   renderer.shadowMap.needsUpdate=false;
   sunLight.castShadow=false;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,0.85));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,IS_MOBILE?0.78:0.85));
   document.body.dataset.performanceMode='on';
   if(G.started) showToast('PERFORMANCE-MODUS AKTIV',2);
 }
@@ -2986,7 +3131,9 @@ function loop(ts){
 }
 
 function init(){
+  setupTouchControls();
   initScene();
+  if(IS_MOBILE) enablePerformanceMode();
   buildCity();
   buildExtras();
   buildExtras2();
