@@ -1281,6 +1281,7 @@ function updateTraffic(dt){
 function updatePlayerCar(c, dt){
   var fwdX = Math.sin(c.angle), fwdZ = Math.cos(c.angle);
   var speedAlong = c.vx*fwdX + c.vz*fwdZ;
+  var touchDriving=IS_MOBILE||TOUCH_AXIS.used;
   var touchY=TOUCH_AXIS.active?TOUCH_AXIS.y:0;
   var throttle = Math.max(keys['KeyW']?1:0,Math.max(0,-touchY));
   var brake = Math.max(keys['KeyS']?1:0,Math.max(0,touchY));
@@ -1291,6 +1292,7 @@ function updatePlayerCar(c, dt){
   var baseF = c.kind==='sport' ? 46 : ((c.kind==='van'||c.kind==='ambulance') ? 33 : 40);
   var baseA = c.kind==='sport' ? 27 : ((c.kind==='van'||c.kind==='ambulance') ? 19 : 23);
   var maxF = c.tuned ? baseF*1.2 : baseF, maxR = -11, acc = c.tuned ? baseA*1.22 : baseA;
+  if(touchDriving) acc*=1.12;
   var nitroActive=!!(throttle && keys['KeyQ'] && G.nitro>0.5);
   if(nitroActive){
     acc*=1.62; maxF*=1.2; G.nitro=Math.max(0,G.nitro-31*dt);
@@ -1298,16 +1300,18 @@ function updatePlayerCar(c, dt){
   } else G.nitro=Math.min(100,G.nitro+5.5*dt);
   if(throttle) { c.vx += fwdX*acc*dt; c.vz += fwdZ*acc*dt; }
   if(brake){
-    if(speedAlong > 1){ c.vx -= fwdX*36*dt; c.vz -= fwdZ*36*dt; }
-    else { c.vx -= fwdX*10*dt; c.vz -= fwdZ*10*dt; }
+    if(speedAlong > 1){ var brakeForce=touchDriving?48:36; c.vx -= fwdX*brakeForce*dt; c.vz -= fwdZ*brakeForce*dt; }
+    else { var reverseForce=touchDriving?12:10; c.vx -= fwdX*reverseForce*dt; c.vz -= fwdZ*reverseForce*dt; }
   }
   // Lenken (skaliert mit Tempo, invertiert beim Rueckwaertsfahren)
   var steerSpeed=c.vx*fwdX+c.vz*fwdZ;
   var sf;
   if(TOUCH_AXIS.active){
     var steerDir=steerSpeed<-.2?-1:1;
-    sf=steerDir*(Math.abs(steerSpeed)>.15?clamp(Math.abs(steerSpeed)/4.2,.32,1):0);
-    c.angle += steer * 2.85 * sf * dt;
+    var absSteerSpeed=Math.abs(steerSpeed);
+    sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.2,.5,1):0);
+    var directSteerRate=lerp(3.8,2.8,clamp(absSteerSpeed/32,0,1));
+    c.angle += steer * directSteerRate * sf * dt;
   } else {
     sf=clamp(speedAlong/6.5,-1,1);
     c.angle += steer * 2.25 * sf * dt;
@@ -1317,7 +1321,7 @@ function updatePlayerCar(c, dt){
   speedAlong = c.vx*fwdX + c.vz*fwdZ;
   speedAlong = clamp(speedAlong, maxR, maxF);
   var latX = c.vx - fwdX*speedAlong, latZ = c.vz - fwdZ*speedAlong;
-  var grip = hand ? 0.988 : (0.82 + WEATHER.rain*0.09);
+  var grip = hand ? 0.988 : (touchDriving ? (0.64 + WEATHER.rain*0.12) : (0.82 + WEATHER.rain*0.09));
   var g2 = Math.pow(grip, dt*60);
   latX *= g2; latZ *= g2;
   if(hand && (latX*latX+latZ*latZ) > 9 && c.y <= 0){
@@ -1327,8 +1331,10 @@ function updatePlayerCar(c, dt){
     spawnSkid(c.x - fwdX*1.45 - rxs*0.8, c.z - fwdZ*1.45 - rzs*0.8, c.angle);
   }
   // Rollwiderstand
-  var drag = Math.pow(hand?0.99:0.9985, dt*60);
+  var touchCoast=touchDriving && throttle<0.04 && brake<0.04;
+  var drag = Math.pow(hand?0.99:(touchCoast?0.988:0.9985), dt*60);
   speedAlong *= drag;
+  if(touchCoast && Math.abs(speedAlong)<0.35) speedAlong=0;
   c.vx = fwdX*speedAlong + latX;
   c.vz = fwdZ*speedAlong + latZ;
 
@@ -2538,7 +2544,7 @@ function onBossDestroyed(c){
 function updatePlayerFoot(dt){
   G.nitro=Math.min(100,G.nitro+9*dt);
   var rot = TOUCH_AXIS.active ? -TOUCH_AXIS.x : ((keys['KeyA']?1:0) - (keys['KeyD']?1:0));
-  player.angle += rot*(TOUCH_AXIS.active?4.9:3.7)*dt;
+  player.angle += rot*(TOUCH_AXIS.active?5.8:3.7)*dt;
   var fwd = (keys['KeyW']?1:0) - (keys['KeyS']?0.6:0);
   if(TOUCH_AXIS.active){
     var touchFwd=-TOUCH_AXIS.y;
@@ -2709,7 +2715,7 @@ function updateCamera(dt){
   if(G.inCar){ px=G.inCar.x; pz=G.inCar.z; ang=G.inCar.angle; back=10.5; h=5.2; }
   else { px=player.x; pz=player.z; ang=player.angle; back=6.2; h=3.2; }
   camTmp.set(px - Math.sin(ang)*back, h, pz - Math.cos(ang)*back);
-  var t = 1 - Math.pow(IS_MOBILE?0.00005:0.0015, dt);
+  var t = 1 - Math.pow(IS_MOBILE?0.0000005:0.0015, dt);
   camera.position.lerp(camTmp, t);
   G.shake = Math.max(0, G.shake - dt*1.8);
   if(G.shake > 0.01){
@@ -2885,11 +2891,11 @@ function updateHUD(dt){
 // ---------- Eingabe ----------
 var KEY_ALIAS = {ArrowUp:'KeyW', ArrowDown:'KeyS', ArrowLeft:'KeyA', ArrowRight:'KeyD'};
 var IS_MOBILE = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints>0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null};
+var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null,used:false};
 function touchResponse(v){
-  var av=Math.abs(v), dead=0.055;
+  var av=Math.abs(v), dead=0.025;
   if(av<=dead) return 0;
-  return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.72);
+  return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.62);
 }
 function setTouchAxis(x,y,active){
   var len=Math.sqrt(x*x+y*y);
@@ -2898,6 +2904,7 @@ function setTouchAxis(x,y,active){
   TOUCH_AXIS.x=touchResponse(x);
   TOUCH_AXIS.y=touchResponse(y);
   TOUCH_AXIS.active=active!==false && (TOUCH_AXIS.x!==0 || TOUCH_AXIS.y!==0);
+  if(TOUCH_AXIS.active) TOUCH_AXIS.used=true;
   var knob=document.getElementById('touchStickKnob');
   if(knob) knob.style.transform='translate3d('+(TOUCH_AXIS.rawX*38).toFixed(1)+'px,'+(TOUCH_AXIS.rawY*38).toFixed(1)+'px,0)';
 }

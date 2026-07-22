@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.2
+
+- neues Direct-Drive-Profil für Touch: deutlich schnellere Niedrigtempo-Lenkung und direktere Beschleunigung/Bremse
+- stärkere Seitenführung reduziert das schwammige Nachschieben des Fahrzeugs
+- spürbare Motorbremse nach dem Loslassen des Sticks statt langem Weiterrollen
+- nochmals kleinere 2,5-%-Totzone und strafferes Mobile-Kamerafolgen
+
 ## Neu in Version 1.5.1
 
 - direktere Touch-Kurve mit nur noch 5,5 % Totzone und stärkerer Reaktion im mittleren Stickbereich
