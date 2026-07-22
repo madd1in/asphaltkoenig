@@ -279,6 +279,29 @@ async function run() {
       car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
       return result;
     })()`);
+    const desktopDrive = await evaluate(`(() => {
+      const car=G.inCar;
+      car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
+      car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0;
+      TOUCH_AXIS.used=false; releaseTouchStick(); TOUCH_HELD={}; DESKTOP_STEER=0;
+      keys.KeyW=true; keys.KeyA=true;
+      updatePlayerCar(car,1/60);
+      const firstSteerStep=Math.abs(DESKTOP_STEER);
+      for(let frame=1;frame<30;frame+=1) updatePlayerCar(car,1/60);
+      const angleDelta=Math.abs(car.angle), kmh=Math.abs(G.kmh), heldSteer=Math.abs(DESKTOP_STEER);
+      keys.KeyA=false;
+      const releaseAngle=car.angle;
+      for(let frame=0;frame<10;frame+=1) updatePlayerCar(car,1/60);
+      const releaseDrift=Math.abs(wrapAng(car.angle-releaseAngle)), settledSteer=Math.abs(DESKTOP_STEER);
+      keys.KeyW=false;
+      car.hp=car.maxHp;
+      const heavyHit=damageVehicle(car,30,12);
+      for(let hit=1;hit<5;hit+=1) damageVehicle(car,30,12);
+      const survivesFiveHeavyHits=car.hp>0, remainingHp=car.hp, maxHp=car.maxHp;
+      car.hp=car.maxHp; car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; DESKTOP_STEER=0; G.kmh=0;
+      car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0;
+      return {firstSteerStep,angleDelta,kmh,heldSteer,releaseDrift,settledSteer,heavyHit,survivesFiveHeavyHits,remainingHp,maxHp};
+    })()`);
     const driveKmh = await evaluate(`(() => {
       keys.KeyW = true;
       for (let frame = 0; frame < 54; frame += 1) updatePlayerCar(G.inCar, 1/60);
@@ -352,8 +375,8 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, touchDrive, assets, errors: errorList };
-    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} driveButtonMs=${touchDrive.buttonInputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} highSpeedTurn=${touchDrive.highSpeedTurn.toFixed(3)} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
+    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, touchDrive, desktopDrive, assets, errors: errorList };
+    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} driveButtonMs=${touchDrive.buttonInputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} highSpeedTurn=${touchDrive.highSpeedTurn.toFixed(3)} desktopTurn=${desktopDrive.angleDelta.toFixed(3)} crashDamage=${desktopDrive.heavyHit} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -387,6 +410,11 @@ async function run() {
       || touchDrive.angleDelta < 0.68 || touchDrive.angleDelta > 0.98 || touchDrive.kmh < 12
       || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.16 || touchDrive.highSpeedTurn > 0.36
       || touchDrive.coastRatio > 0.58
+      || desktopDrive.firstSteerStep < 0.08 || desktopDrive.firstSteerStep > 0.16
+      || desktopDrive.angleDelta < 0.42 || desktopDrive.angleDelta > 0.86 || desktopDrive.kmh < 25
+      || desktopDrive.heldSteer < 0.6 || desktopDrive.heldSteer > 0.86
+      || desktopDrive.releaseDrift > 0.18 || desktopDrive.settledSteer > 0.02
+      || desktopDrive.maxHp < 48 || desktopDrive.heavyHit > 9 || !desktopDrive.survivesFiveHeavyHits
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;

@@ -1102,6 +1102,14 @@ function damagePlayer(x){
   G.health -= x;
   if(G.health <= 0){ G.health = 0; gameOver('wasted'); }
 }
+function damageVehicle(c, amount, cap){
+  if(!c || c.dead || amount<=0) return 0;
+  var limited=Math.min(amount,cap||Infinity);
+  if(c===G.inCar) limited*=0.72;
+  var applied=Math.max(1,Math.round(limited));
+  c.hp-=applied;
+  return applied;
+}
 function gameOver(kind){
   if(G.dead) return;
   G.dead = true; G.deadT = 0; G.deadKind = kind;
@@ -1154,7 +1162,7 @@ function explodeCar(c){
   if(!c.noHeat) addHeat(12);
   // Umgebungsschaden
   var pd = G.inCar ? dist(G.inCar.x,G.inCar.z,c.x,c.z) : dist(player.x,player.z,c.x,c.z);
-  if(G.inCar && G.inCar!==c && pd<7) G.inCar.hp -= 25;
+  if(G.inCar && G.inCar!==c && pd<7) damageVehicle(G.inCar,18,14);
   if(!G.inCar && pd<7) damagePlayer(Math.round(55-pd*6));
   for(var i=0;i<peds.length;i++){
     var pe = peds[i];
@@ -1312,7 +1320,15 @@ function updatePlayerCar(c, dt){
   var keySteer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
   var buttonSteering=!TOUCH_AXIS.active && keySteer!==0 && !!(TOUCH_HELD.KeyA||TOUCH_HELD.KeyD);
   var buttonSteerScale=lerp(.68,.44,clamp(Math.abs(speedAlong)/24,0,1));
-  var steer = TOUCH_AXIS.active ? -TOUCH_AXIS.x : (buttonSteering?keySteer*buttonSteerScale:keySteer);
+  var desktopSteering=!TOUCH_AXIS.active&&!buttonSteering;
+  if(desktopSteering){
+    var desktopSteerLimit=lerp(.86,.62,clamp(Math.abs(speedAlong)/30,0,1));
+    var desktopSteerTarget=keySteer*desktopSteerLimit;
+    var desktopSteerRate=desktopSteerTarget===0?8.5:6.8;
+    DESKTOP_STEER+=clamp(desktopSteerTarget-DESKTOP_STEER,-desktopSteerRate*dt,desktopSteerRate*dt);
+    if(Math.abs(DESKTOP_STEER)<.002) DESKTOP_STEER=0;
+  } else DESKTOP_STEER=0;
+  var steer = TOUCH_AXIS.active ? -TOUCH_AXIS.x : (buttonSteering?keySteer*buttonSteerScale:DESKTOP_STEER);
   var hand = keys['Space']?1:0;
 
   var baseF = c.kind==='sport' ? 46 : ((c.kind==='van'||c.kind==='ambulance') ? 33 : 40);
@@ -1339,8 +1355,9 @@ function updatePlayerCar(c, dt){
     var directSteerRate=lerp(3.25,2.05,clamp(absSteerSpeed/24,0,1));
     c.angle += steer * directSteerRate * sf * dt;
   } else {
-    sf=clamp(speedAlong/6.5,-1,1);
-    c.angle += steer * 2.25 * sf * dt;
+    sf=clamp(speedAlong/5.8,-1,1);
+    var desktopTurnRate=lerp(2.45,1.75,clamp(Math.abs(steerSpeed)/30,0,1));
+    c.angle += steer * desktopTurnRate * sf * dt;
   }
   // Grip: Quergeschwindigkeit daempfen
   fwdX = Math.sin(c.angle); fwdZ = Math.cos(c.angle);
@@ -1375,7 +1392,7 @@ function updatePlayerCar(c, dt){
       c.vx -= hit.nx*vn*1.5; c.vz -= hit.nz*vn*1.5;
       var impact = -vn;
       if(impact > 6){
-        c.hp -= Math.round((impact-5)*1.6);
+        damageVehicle(c,(impact-5)*1.1,18);
         sfxCrash(impact*0.5);
         G.shake = Math.max(G.shake, clamp(impact/28, 0.15, 0.7));
       }
@@ -1411,8 +1428,8 @@ function hitCars(c, list, dt){
       if(rel < 0){ c.vx -= nx*rel*1.4; c.vz -= nz*rel*1.4; }
       if(mag > 4){
         var dmg = Math.round(mag*1.15);
-        c.hp -= Math.max(1, Math.round(dmg*0.55));
-        o.hp -= dmg;
+        damageVehicle(c,dmg*0.48,12);
+        damageVehicle(o,dmg);
         sfxCrash(mag*0.5);
         G.shake = Math.max(G.shake, clamp(mag/30, 0.1, 0.6));
         if(o.kind!=='police' && !o.noHeat && mag > 7) addHeat(5);
@@ -1431,7 +1448,7 @@ function hitPeds(c){
     if(pe.state==='down' || pe.riding) continue;
     if(dist2(c.x,c.z,pe.x,pe.z) < 3.2){
       knockPed(pe, 18);
-      c.hp -= 1;
+      damageVehicle(c,1);
       for(var j=0;j<peds.length;j++){
         var q = peds[j];
         if(q!==pe && q.state==='walk' && dist2(q.x,q.z,pe.x,pe.z)<625) startFlee(q, pe.x, pe.z);
@@ -1501,8 +1518,8 @@ function updateCops(dt){
         var nx = (G.inCar.x-c.x)/pd, nz = (G.inCar.z-c.z)/pd;
         var relSp = Math.abs(c.copSpeed);
         if(relSp > 5 && c.ramCool<=0){
-          G.inCar.hp -= Math.max(2,Math.round(relSp*0.28));
-          c.hp -= Math.round(relSp*0.25);
+          damageVehicle(G.inCar,Math.max(2,relSp*0.22),7);
+          damageVehicle(c,relSp*0.25);
           G.inCar.vx += nx*relSp*0.25; G.inCar.vz += nz*relSp*0.25;
           sfxCrash(relSp*0.4);
           G.shake = Math.max(G.shake, 0.2);
@@ -1846,7 +1863,7 @@ function updateMission(dt){
       ec2.mesh.rotation.y = ec2.angle;
       spinWheels(ec2, ec2.speed, dt, 0);
       if(G.inCar && pdd2 < 11 && ec2.speed > 5){
-        G.inCar.hp -= Math.round(ec2.speed*0.5);
+        damageVehicle(G.inCar,ec2.speed*0.32,8);
         sfxCrash(ec2.speed*0.4);
         ec2.speed *= 0.4;
         G.shake = Math.max(G.shake, 0.3);
@@ -2192,7 +2209,7 @@ function updateAir(c, speedAlong, dt){
         sfxCash();
       }
       if(vImp > 10){
-        c.hp -= Math.round((vImp-9)*1.1);
+        damageVehicle(c,(vImp-9)*0.8,14);
         sfxCrash(vImp*0.35);
         G.shake = Math.max(G.shake, 0.35);
       }
@@ -2657,6 +2674,7 @@ function tryEnterExit(){
   if(ci >= 0){ cops.splice(ci,1); parkedCars.push(c2); addHeat(16); }
   else if(!c2.stolen && !c2.owned) addHeat(4);
   c2.stolen = true;
+  DESKTOP_STEER = 0;
   G.inCar = c2;
   c2.vx = 0; c2.vz = 0;
   player.mesh.visible = false;
@@ -2687,6 +2705,7 @@ function punch(){
 function ejectPlayer(boom){
   var c = G.inCar;
   if(!c) return;
+  DESKTOP_STEER = 0;
   G.inCar = null;
   player.x = c.x + Math.cos(c.angle)*2.6;
   player.z = c.z - Math.sin(c.angle)*2.6;
@@ -2919,6 +2938,7 @@ var KEY_ALIAS = {ArrowUp:'KeyW', ArrowDown:'KeyS', ArrowLeft:'KeyA', ArrowRight:
 var IS_MOBILE = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints>0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null,used:false};
 var TOUCH_HELD = {};
+var DESKTOP_STEER = 0;
 function touchThrottleResponse(v){
   var av=Math.abs(v), dead=0.025;
   if(av<=dead) return 0;
@@ -3000,7 +3020,7 @@ function setupTouchControls(){
       G.paused=true; document.getElementById('pauseScreen').classList.add('show');
     }
     keys.KeyQ=false; keys.Space=false; keys.KeyW=false; keys.KeyA=false; keys.KeyS=false; keys.KeyD=false; keys.ShiftLeft=false; keys.ShiftRight=false;
-    TOUCH_HELD={}; releaseTouchStick();
+    TOUCH_HELD={}; DESKTOP_STEER=0; releaseTouchStick();
   });
 }
 function handleKeyDown(e){
@@ -3532,10 +3552,10 @@ function updateRadio(){
 // ============================================================
 
 function carHP(kind){
-  if(kind==='police') return 55;
-  if(kind==='van') return 70;
-  if(kind==='sport') return 32;
-  return 42;
+  if(kind==='police') return 68;
+  if(kind==='van') return 84;
+  if(kind==='sport') return 48;
+  return 60;
 }
 
 // ---------- Fahrzeugklassen: Limousine / Lieferwagen / Sportwagen ----------

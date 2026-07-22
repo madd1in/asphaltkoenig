@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.10
+
+- präzisere Desktop-Lenkung mit kurzer Eingaberampe, sauberem Rückstellen und geschwindigkeitsabhängiger Maximalwirkung
+- höhere Fahrzeughaltbarkeit: Sportwagen 48, Zivilfahrzeuge 60, Polizei 68 und Vans 84 HP
+- 28 % Schutz für das aktuell gefahrene Auto sowie gedeckelte Schadensspitzen bei Wänden, Kollisionen, Explosionen und Landungen
+- neue Desktop-Regressionstests prüfen Lenkaufbau, Kurvenwinkel, Nachlauf und das Überleben von fünf schweren Treffern
+
 ## Neu in Version 1.5.9
 
 - stärkere digitale Mobile-Lenkung bei niedrigem und mittlerem Tempo für engere Kurven
