@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.7
+
+- eigene Mobile-Steuerung zu Fuß mit Analogstick sowie `SPRINT`, `AKTION` und großem `EINSTEIGEN`-Button
+- separate Fahransicht mit `NITRO`, `DRIFT`, `HUPE` und `GAS` rechts sowie Lenken/Bremse/Aussteigen links
+- UI wechselt beim Ein- und Aussteigen automatisch zwischen beiden vollständig getrennten Button-Sets
+- Regressionstests prüfen Sichtbarkeit und Hold/Release-Verhalten beider Steuerungsmodi
+
 ## Neu in Version 1.5.6
 
 - `GAS` sitzt jetzt fest in der untersten rechten Position der Mobile-Fahrsteuerung

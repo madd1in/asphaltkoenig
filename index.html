@@ -77,12 +77,15 @@
   .touchBtn{border:1px solid rgba(255,255,255,.3);background:rgba(14,18,26,.72);color:#fff;backdrop-filter:blur(4px);box-shadow:0 5px 18px rgba(0,0,0,.28);font-family:inherit;font-weight:900;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent;}
   .touchBtn:active,.touchBtn.pressed{transform:scale(.94);filter:brightness(1.2);}
   .touchMini{width:40px;height:34px;border-radius:12px;font-size:9px;letter-spacing:.3px;}
-  #touchActionGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:end;}
+  .touchActionGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:end;}
+  #touchDriveActions{display:none;}
+  .driving #touchDriveActions{display:grid;}
+  .driving #touchFootActions{display:none;}
   .touchAction{height:62px;border-radius:50%;font-size:10px;letter-spacing:.5px;}
   #touchNitro{background:linear-gradient(145deg,rgba(32,205,235,.88),rgba(100,76,220,.88));}
-  #touchEnter{background:linear-gradient(145deg,rgba(255,210,74,.92),rgba(218,119,28,.92));color:#302006;}
-  .touch-drive{opacity:.38;pointer-events:none;}
-  .driving .touch-drive{opacity:1;pointer-events:auto;}
+  #touchSprint{background:linear-gradient(145deg,rgba(72,167,235,.9),rgba(48,79,173,.88));}
+  #touchEnter,#touchFootEnter{background:linear-gradient(145deg,rgba(255,210,74,.92),rgba(218,119,28,.92));color:#302006;}
+  #touchFootEnter{grid-column:1/-1;border-radius:18px;}
   @media (max-width:760px), (pointer:coarse){
     .chip,.touchBtn,#touchStick{backdrop-filter:none;-webkit-backdrop-filter:none;}
     #hudTL{top:max(7px,env(safe-area-inset-top));left:max(7px,env(safe-area-inset-left));gap:5px;transform:scale(.82);transform-origin:top left;}
@@ -161,11 +164,16 @@
       <button class="touchBtn touchMini" data-tap="KeyT" aria-label="Fahrzeug tunen">TUNE</button>
       <button class="touchBtn touchMini" data-tap="KeyP" aria-label="Pause">PAUSE</button>
     </div>
-    <div id="touchActionGrid">
-      <button id="touchNitro" class="touchBtn touchAction touch-drive" data-hold="KeyQ">NITRO</button>
-      <button id="touchDrift" class="touchBtn touchAction touch-drive" data-hold="Space">DRIFT</button>
+    <div id="touchDriveActions" class="touchActionGrid">
+      <button id="touchNitro" class="touchBtn touchAction" data-hold="KeyQ">NITRO</button>
+      <button id="touchDrift" class="touchBtn touchAction" data-hold="Space">DRIFT</button>
+      <button id="touchHorn" class="touchBtn touchAction">HUPE</button>
+      <button id="touchGas" class="touchBtn touchAction" data-hold="KeyW">GAS</button>
+    </div>
+    <div id="touchFootActions" class="touchActionGrid">
+      <button id="touchSprint" class="touchBtn touchAction" data-hold="ShiftLeft">SPRINT</button>
       <button id="touchContext" class="touchBtn touchAction">AKTION</button>
-      <button id="touchGas" class="touchBtn touchAction touch-drive" data-hold="KeyW">GAS</button>
+      <button id="touchFootEnter" class="touchBtn touchAction">EINSTEIGEN</button>
     </div>
   </div>
 </div>
@@ -2945,8 +2953,8 @@ function updateTouchLabels(){
   if(G.inCar && TOUCH_AXIS.active) releaseTouchStick();
   document.body.classList.toggle('driving',!!G.inCar);
   var context=document.getElementById('touchContext'), enter=document.getElementById('touchEnter');
-  if(context) context.textContent=G.inCar?(shopNearby()?'REPARATUR':'HUPE'):(snackPromptText()?'SNACK':'AKTION');
-  if(enter) enter.textContent=G.inCar?'AUSSTEIGEN':'EINSTEIGEN';
+  if(context) context.textContent=snackPromptText()?'SNACK':'AKTION';
+  if(enter) enter.textContent='AUSSTEIGEN';
 }
 function setupTouchControls(){
   document.body.classList.toggle('touch-device',IS_MOBILE);
@@ -2981,15 +2989,17 @@ function setupTouchControls(){
   })(holdButtons[hi]);
   var tapButtons=document.querySelectorAll('[data-tap]');
   for(var ti=0;ti<tapButtons.length;ti++) tapButtons[ti].addEventListener('pointerdown',function(e){ fireMobileTap(this.dataset.tap); e.preventDefault(); });
-  document.getElementById('touchContext').addEventListener('pointerdown',function(e){ fireMobileTap(G.inCar?'KeyH':'KeyF'); e.preventDefault(); });
+  document.getElementById('touchHorn').addEventListener('pointerdown',function(e){ fireMobileTap('KeyH'); e.preventDefault(); });
+  document.getElementById('touchContext').addEventListener('pointerdown',function(e){ fireMobileTap('KeyF'); e.preventDefault(); });
   document.getElementById('touchEnter').addEventListener('pointerdown',function(e){ fireMobileTap('KeyE'); e.preventDefault(); });
+  document.getElementById('touchFootEnter').addEventListener('pointerdown',function(e){ fireMobileTap('KeyE'); e.preventDefault(); });
   document.getElementById('resumeBtn').addEventListener('click',function(){ if(G.paused) fireMobileTap('KeyP'); });
   document.getElementById('touchControls').addEventListener('contextmenu',function(e){ e.preventDefault(); });
   document.addEventListener('visibilitychange',function(){
     if(document.hidden && G.started && !G.dead && !G.paused){
       G.paused=true; document.getElementById('pauseScreen').classList.add('show');
     }
-    keys.KeyQ=false; keys.Space=false; keys.KeyW=false; keys.KeyA=false; keys.KeyS=false; keys.KeyD=false;
+    keys.KeyQ=false; keys.Space=false; keys.KeyW=false; keys.KeyA=false; keys.KeyS=false; keys.KeyD=false; keys.ShiftLeft=false; keys.ShiftRight=false;
     TOUCH_HELD={}; releaseTouchStick();
   });
 }
