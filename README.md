@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.8
+
+- `BREMSE` sitzt im Auto jetzt direkt links neben `GAS` in der untersten rechten Button-Reihe
+- deutlich größere und höhere `LINKS/RECHTS`-Lenktasten für sichereres Treffen mit dem Daumen
+- `HUPE` befindet sich im linken Fahrblock neben `AUSSTEIGEN`; Fußgängersteuerung bleibt unverändert
+- Layout-Regressionstest prüft Pedalreihenfolge und Mindestgröße der Lenktasten
+
 ## Neu in Version 1.5.7
 
 - eigene Mobile-Steuerung zu Fuß mit Analogstick sowie `SPRINT`, `AKTION` und großem `EINSTEIGEN`-Button

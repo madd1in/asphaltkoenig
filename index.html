@@ -67,8 +67,8 @@
   .driving #touchStickWrap{display:none;}
   .driving #touchDrivePad{display:grid;}
   .touchDriveButton{height:60px;border-radius:18px;font-size:11px;letter-spacing:.7px;pointer-events:auto;}
-  .touchSteerButton{background:linear-gradient(145deg,rgba(38,46,62,.9),rgba(15,20,30,.86));font-size:20px;}
-  .touchSteerButton small{display:block;margin-top:2px;font-size:8px;letter-spacing:1px;}
+  .touchSteerButton{height:76px;background:linear-gradient(145deg,rgba(38,46,62,.9),rgba(15,20,30,.86));font-size:27px;}
+  .touchSteerButton small{display:block;margin-top:3px;font-size:9px;letter-spacing:1.2px;}
   #touchBrake{background:linear-gradient(145deg,rgba(225,82,65,.9),rgba(126,31,39,.88));}
   #touchGas{background:linear-gradient(145deg,rgba(65,211,124,.92),rgba(27,118,76,.9));}
   #touchEnter.touchDriveButton{font-size:9px;letter-spacing:.2px;}
@@ -154,7 +154,7 @@
   <div id="touchDrivePad" role="group" aria-label="Fahrsteuerung">
     <button id="touchLeft" class="touchBtn touchDriveButton touchSteerButton" data-hold="KeyA" aria-label="Nach links lenken">◀<small>LINKS</small></button>
     <button id="touchRight" class="touchBtn touchDriveButton touchSteerButton" data-hold="KeyD" aria-label="Nach rechts lenken">▶<small>RECHTS</small></button>
-    <button id="touchBrake" class="touchBtn touchDriveButton" data-hold="KeyS">BREMSE</button>
+    <button id="touchHorn" class="touchBtn touchDriveButton">HUPE</button>
     <button id="touchEnter" class="touchBtn touchDriveButton">EIN/AUS</button>
   </div>
   <div id="touchActions">
@@ -167,7 +167,7 @@
     <div id="touchDriveActions" class="touchActionGrid">
       <button id="touchNitro" class="touchBtn touchAction" data-hold="KeyQ">NITRO</button>
       <button id="touchDrift" class="touchBtn touchAction" data-hold="Space">DRIFT</button>
-      <button id="touchHorn" class="touchBtn touchAction">HUPE</button>
+      <button id="touchBrake" class="touchBtn touchAction" data-hold="KeyS">BREMSE</button>
       <button id="touchGas" class="touchBtn touchAction" data-hold="KeyW">GAS</button>
     </div>
     <div id="touchFootActions" class="touchActionGrid">

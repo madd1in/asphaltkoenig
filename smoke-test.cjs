@@ -245,10 +245,13 @@ async function run() {
       const car=G.inCar;
       document.body.classList.add('touch-device','game-started');
       updateTouchLabels();
-      const gas=document.getElementById('touchGas'), left=document.getElementById('touchLeft');
+      const gas=document.getElementById('touchGas'), brake=document.getElementById('touchBrake'), left=document.getElementById('touchLeft'), right=document.getElementById('touchRight');
       const driveControlsVisible=getComputedStyle(document.getElementById('touchDriveActions')).display==='grid'&&getComputedStyle(document.getElementById('touchFootActions')).display==='none';
       const gasRect=gas.getBoundingClientRect();
+      const brakeRect=brake.getBoundingClientRect(), leftRect=left.getBoundingClientRect(), rightRect=right.getBoundingClientRect();
       const gasBottomRight=gasRect.left>innerWidth*0.5&&gasRect.bottom>innerHeight*0.8&&getComputedStyle(gas).pointerEvents==='auto';
+      const brakeLeftOfGas=brakeRect.right<=gasRect.left+1&&Math.abs(brakeRect.bottom-gasRect.bottom)<2;
+      const largeSteerButtons=leftRect.height>=74&&rightRect.height>=74;
       const inputStarted=performance.now();
       gas.dispatchEvent(new PointerEvent('pointerdown',{pointerId:101,bubbles:true}));
       left.dispatchEvent(new PointerEvent('pointerdown',{pointerId:102,bubbles:true}));
@@ -271,7 +274,7 @@ async function run() {
       const highSpeedTurn=Math.abs(wrapAng(car.angle-highSpeedStartAngle));
       left.dispatchEvent(new PointerEvent('pointerup',{pointerId:104,bubbles:true}));
       gas.dispatchEvent(new PointerEvent('pointerup',{pointerId:103,bubbles:true}));
-      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn,buttonInputLatencyMs,buttonsHeld,buttonsReleased,driveControlsVisible,gasBottomRight,gasRect:{left:gasRect.left,top:gasRect.top,right:gasRect.right,bottom:gasRect.bottom}};
+      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn,buttonInputLatencyMs,buttonsHeld,buttonsReleased,driveControlsVisible,gasBottomRight,brakeLeftOfGas,largeSteerButtons,gasRect:{left:gasRect.left,top:gasRect.top,right:gasRect.right,bottom:gasRect.bottom},brakeRect:{left:brakeRect.left,top:brakeRect.top,right:brakeRect.right,bottom:brakeRect.bottom},steerButtonHeight:leftRect.height};
       car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
       car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
       return result;
@@ -379,7 +382,8 @@ async function run() {
       || !mobileControls.throttleBoost || !mobileControls.steeringPrecision || mobileControls.inputLatencyMs > 5
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
-      || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || !touchDrive.driveControlsVisible || !touchDrive.gasBottomRight || touchDrive.buttonInputLatencyMs > 5
+      || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || !touchDrive.driveControlsVisible || !touchDrive.gasBottomRight
+      || !touchDrive.brakeLeftOfGas || !touchDrive.largeSteerButtons || touchDrive.buttonInputLatencyMs > 5
       || touchDrive.angleDelta < 0.45 || touchDrive.angleDelta > 0.82 || touchDrive.kmh < 12
       || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.12 || touchDrive.highSpeedTurn > 0.38
       || touchDrive.coastRatio > 0.58
