@@ -233,7 +233,15 @@ async function run() {
       const coastStart=Math.abs(G.kmh);
       for(let frame=0;frame<60;frame+=1) updatePlayerCar(car,1/60);
       const coastEnd=Math.abs(G.kmh), coastRatio=coastEnd/Math.max(0.01,coastStart);
-      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio};
+      car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
+      setTouchAxis(0,-1,true);
+      for(let frame=0;frame<75;frame+=1) updatePlayerCar(car,1/60);
+      const highSpeedKmh=Math.abs(G.kmh), highSpeedStartAngle=car.angle;
+      setTouchAxis(-0.62,-0.86,true);
+      for(let frame=0;frame<15;frame+=1) updatePlayerCar(car,1/60);
+      const highSpeedTurn=Math.abs(wrapAng(car.angle-highSpeedStartAngle));
+      releaseTouchStick();
+      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn};
       car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
       car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
       return result;
@@ -308,7 +316,7 @@ async function run() {
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
     const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, touchDrive, assets, errors: errorList };
-    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
+    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} highSpeedTurn=${touchDrive.highSpeedTurn.toFixed(3)} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -336,7 +344,9 @@ async function run() {
       || !mobileControls.responseBoost || mobileControls.inputLatencyMs > 5
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
-      || touchDrive.angleDelta < 1.05 || touchDrive.kmh < 12 || touchDrive.coastRatio > 0.58
+      || touchDrive.angleDelta < 0.82 || touchDrive.angleDelta > 1.02 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.2 || touchDrive.highSpeedTurn > 0.6
+      || touchDrive.coastRatio > 0.58
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;

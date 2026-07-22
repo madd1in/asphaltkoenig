@@ -1309,8 +1309,8 @@ function updatePlayerCar(c, dt){
   if(TOUCH_AXIS.active){
     var steerDir=steerSpeed<-.2?-1:1;
     var absSteerSpeed=Math.abs(steerSpeed);
-    sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.2,.5,1):0);
-    var directSteerRate=lerp(3.8,2.8,clamp(absSteerSpeed/32,0,1));
+    sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.6,.42,1):0);
+    var directSteerRate=lerp(3.25,2.25,clamp(absSteerSpeed/28,0,1));
     c.angle += steer * directSteerRate * sf * dt;
   } else {
     sf=clamp(speedAlong/6.5,-1,1);
@@ -1321,7 +1321,7 @@ function updatePlayerCar(c, dt){
   speedAlong = c.vx*fwdX + c.vz*fwdZ;
   speedAlong = clamp(speedAlong, maxR, maxF);
   var latX = c.vx - fwdX*speedAlong, latZ = c.vz - fwdZ*speedAlong;
-  var grip = hand ? 0.988 : (touchDriving ? (0.64 + WEATHER.rain*0.12) : (0.82 + WEATHER.rain*0.09));
+  var grip = hand ? 0.988 : (touchDriving ? (0.68 + WEATHER.rain*0.11) : (0.82 + WEATHER.rain*0.09));
   var g2 = Math.pow(grip, dt*60);
   latX *= g2; latZ *= g2;
   if(hand && (latX*latX+latZ*latZ) > 9 && c.y <= 0){
@@ -2715,7 +2715,7 @@ function updateCamera(dt){
   if(G.inCar){ px=G.inCar.x; pz=G.inCar.z; ang=G.inCar.angle; back=10.5; h=5.2; }
   else { px=player.x; pz=player.z; ang=player.angle; back=6.2; h=3.2; }
   camTmp.set(px - Math.sin(ang)*back, h, pz - Math.cos(ang)*back);
-  var t = 1 - Math.pow(IS_MOBILE?0.0000005:0.0015, dt);
+  var t = 1 - Math.pow(IS_MOBILE?0.000005:0.0015, dt);
   camera.position.lerp(camTmp, t);
   G.shake = Math.max(0, G.shake - dt*1.8);
   if(G.shake > 0.01){
@@ -2895,7 +2895,7 @@ var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null,used:false};
 function touchResponse(v){
   var av=Math.abs(v), dead=0.025;
   if(av<=dead) return 0;
-  return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.62);
+  return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.68);
 }
 function setTouchAxis(x,y,active){
   var len=Math.sqrt(x*x+y*y);

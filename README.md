@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.3
+
+- geschwindigkeitsabhängige Touch-Lenkung verhindert Übersteuern bei höherem Tempo
+- ausgewogener Lenkkorridor: direkt beim Anfahren, progressiv ruhiger auf schnellen Geraden
+- leicht weichere Seitenführung und Kameranachführung ohne die Eingabeverzögerung zurückzubringen
+- Regressionstest prüft jetzt getrennt Niedrig-/Mitteltempo und Hochgeschwindigkeitslenkung
+
 ## Neu in Version 1.5.2
 
 - neues Direct-Drive-Profil für Touch: deutlich schnellere Niedrigtempo-Lenkung und direktere Beschleunigung/Bremse
