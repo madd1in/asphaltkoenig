@@ -407,8 +407,8 @@ async function run() {
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
       || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || !touchDrive.driveControlsVisible || !touchDrive.gasBottomRight
       || !touchDrive.brakeLeftOfGas || !touchDrive.largeSteerButtons || touchDrive.buttonInputLatencyMs > 5
-      || touchDrive.angleDelta < 0.76 || touchDrive.angleDelta > 1.02 || touchDrive.kmh < 12
-      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.18 || touchDrive.highSpeedTurn > 0.36
+      || touchDrive.angleDelta < 0.9 || touchDrive.angleDelta > 1.16 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.2 || touchDrive.highSpeedTurn > 0.4
       || touchDrive.coastRatio > 0.58
       || desktopDrive.firstSteerStep < 0.08 || desktopDrive.firstSteerStep > 0.16
       || desktopDrive.angleDelta < 0.42 || desktopDrive.angleDelta > 0.86 || desktopDrive.kmh < 25

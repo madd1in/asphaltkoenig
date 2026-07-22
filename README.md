@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.12
+
+- deutlich größerer Mobile-Lenkeinschlag: rund 18 % mehr Wirkung im typischen Kurventempo
+- Hochgeschwindigkeitslenkung steigt deutlich vorsichtiger und bleibt separat begrenzt
+- Regressionstest verlangt jetzt einen klar höheren realen Kurvenwinkel
+
 ## Neu in Version 1.5.11
 
 - nochmals leicht stärkere Mobile-Lenkung: rund 7 % mehr bei niedriger/mittlerer Geschwindigkeit
