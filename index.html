@@ -628,6 +628,7 @@ function buildCity(){
   padMatG = lam(0xb2b2b8); grassMatG = lam(0x5e7a44); plotMatG = lam(0x7c7c82);
   var roofMat = lam(0x44464e);
   var padPositions=[], parkPlotPositions=[], detailPositions=[[],[],[],[]], roofInstances=[];
+  var buildingInstances=[[],[],[],[],[]], treeInstances=[], treeColors=[0x4d6e35,0x5c7d3d,0x446030];
   for(var bx=0;bx<HALFB*2;bx++) for(var bz=0;bz<HALFB*2;bz++){
     var cx = -WORLD + BLOCK/2 + bx*BLOCK;
     var cz = -WORLD + BLOCK/2 + bz*BLOCK;
@@ -691,36 +692,57 @@ function buildCity(){
       roofMatrix.makeScale(roof.w,0.18,roof.d); roofMatrix.setPosition(roof.x,roof.y,roof.z);
       roofBatch.setMatrixAt(ri,roofMatrix);
     }
-    roofBatch.receiveShadow=true; roofBatch.instanceMatrix.needsUpdate=true; scene.add(roofBatch);
+    roofBatch.receiveShadow=true; roofBatch.frustumCulled=false; roofBatch.instanceMatrix.needsUpdate=true; scene.add(roofBatch);
+  }
+
+  // Die Skyline bleibt voll erhalten, kostet aber nur noch einen Draw Call pro Fassadenstil.
+  for(var bs=0;bs<buildingInstances.length;bs++){
+    var buildings=buildingInstances[bs];
+    if(!buildings.length) continue;
+    var wall=new THREE.MeshLambertMaterial({map:winTextures[bs],emissive:0xffffff,emissiveMap:winTextures[bs],emissiveIntensity:0});
+    wallMats.push(wall);
+    var buildingBatch=new THREE.InstancedMesh(sharedBox(1,1,1),wall,buildings.length), buildingMatrix=new THREE.Matrix4();
+    for(var bsi=0;bsi<buildings.length;bsi++){
+      var bd=buildings[bsi];
+      buildingMatrix.makeScale(bd.w,bd.h,bd.d); buildingMatrix.setPosition(bd.x,bd.h/2,bd.z);
+      buildingBatch.setMatrixAt(bsi,buildingMatrix);
+    }
+    buildingBatch.castShadow=true; buildingBatch.receiveShadow=true; buildingBatch.frustumCulled=false; buildingBatch.userData.worldBatch=true;
+    buildingBatch.instanceMatrix.needsUpdate=true; scene.add(buildingBatch); buildingMeshes.push(buildingBatch);
+  }
+
+  // Auch alle Parkbäume teilen sich Stamm- und Kronengeometrien.
+  if(treeInstances.length){
+    var trunkBatch=new THREE.InstancedMesh(sharedCylinder(0.35,0.45,2.6,7),lam(0x6a4a30),treeInstances.length), treeMatrix=new THREE.Matrix4();
+    for(var tri=0;tri<treeInstances.length;tri++){
+      var tr=treeInstances[tri]; treeMatrix.makeTranslation(tr.x,1.3,tr.z); trunkBatch.setMatrixAt(tri,treeMatrix);
+    }
+    trunkBatch.frustumCulled=false; trunkBatch.userData.worldBatch=true; trunkBatch.instanceMatrix.needsUpdate=true; scene.add(trunkBatch); treeMeshes.push(trunkBatch);
+    for(var tci=0;tci<treeColors.length;tci++){
+      var coloredTrees=treeInstances.filter(function(item){ return item.colorIndex===tci; });
+      if(!coloredTrees.length) continue;
+      var crownBatch=new THREE.InstancedMesh(new THREE.SphereGeometry(1,8,7),lam(treeColors[tci]),coloredTrees.length);
+      for(var cti=0;cti<coloredTrees.length;cti++){
+        var ct=coloredTrees[cti]; treeMatrix.makeScale(ct.radius,ct.radius,ct.radius); treeMatrix.setPosition(ct.x,ct.y,ct.z);
+        crownBatch.setMatrixAt(cti,treeMatrix);
+      }
+      crownBatch.castShadow=true; crownBatch.frustumCulled=false; crownBatch.userData.worldBatch=true; crownBatch.instanceMatrix.needsUpdate=true;
+      scene.add(crownBatch); treeMeshes.push(crownBatch);
+    }
   }
 
   loadSurfaceTiles();
   loadDetailAssets();
 
   function addBuilding(x, z, w, d, h){
-    var tx = winTextures[randi(0,winTextures.length-1)].clone();
-    tx.needsUpdate = true;
-    tx.repeat.set(Math.max(1,Math.round(w/7)), Math.max(1,Math.round(h/7)));
-    var wall = new THREE.MeshLambertMaterial({map:tx, emissive:0xffffff, emissiveMap:tx, emissiveIntensity:0});
-    wallMats.push(wall);
-    var b = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), wall);
-    b.position.set(x, h/2, z);
-    b.castShadow = true; b.receiveShadow = true;
-    scene.add(b);
-    buildingMeshes.push(b);
+    var styleIndex=randi(0,winTextures.length-1);
+    buildingInstances[styleIndex].push({x:x,z:z,w:w,d:d,h:h});
     roofInstances.push({x:x,y:h+0.09,z:z,w:w+0.16,d:d+0.16});
     solids.push({x0:x-w/2, x1:x+w/2, z0:z-d/2, z1:z+d/2});
     buildingInfos.push({x:x, z:z, w:w, d:d, h:h});
   }
   function addTree(x, z){
-    var g = new THREE.Group();
-    var trunk = mkMesh(new THREE.CylinderGeometry(0.35,0.45,2.6,7), lam(0x6a4a30), 0, 1.3, 0);
-    var crown = mkMesh(new THREE.SphereGeometry(rand(1.8,2.6),8,7), lam(pick([0x4d6e35,0x5c7d3d,0x446030])), 0, rand(3.4,4.2), 0);
-    trunk.castShadow = false; crown.castShadow = true;
-    g.add(trunk); g.add(crown);
-    g.position.set(x, 0, z);
-    scene.add(g);
-    treeMeshes.push(g);
+    treeInstances.push({x:x,z:z,radius:rand(1.8,2.6),y:rand(3.4,4.2),colorIndex:randi(0,treeColors.length-1)});
     solids.push({x0:x-0.6, x1:x+0.6, z0:z-0.6, z1:z+0.6});
   }
 }
@@ -1886,17 +1908,27 @@ function buildExtras(){
   // Neonschilder an hohen Fassaden
   var neonColors = [0xff2d78, 0x2de0ff, 0xa7ff3c, 0xffb52d];
   var cand = buildingInfos.filter(function(b){ return b.h >= 22; });
+  var neonSpecs=[[],[],[],[]];
   for(var ni=0; ni<Math.min(18, cand.length); ni++){
     var b = pick(cand);
     var col = pick(neonColors);
-    var nm = new THREE.MeshLambertMaterial({color:0x14161a, emissive:col, emissiveIntensity:0.25});
-    neonMats.push(nm);
     var w2 = b.w*rand(0.4,0.65);
-    var sign = new THREE.Mesh(new THREE.BoxGeometry(w2, rand(1.0,1.8), 0.35), nm);
+    var h2=rand(1.0,1.8);
     var side = Math.random()<0.5 ? 1 : -1;
-    sign.position.set(b.x + rand(-2,2), b.h*rand(0.55,0.8), b.z + side*(b.d/2+0.25));
-    scene.add(sign);
-    neonSigns.push(sign);
+    neonSpecs[neonColors.indexOf(col)].push({x:b.x+rand(-2,2),y:b.h*rand(0.55,0.8),z:b.z+side*(b.d/2+0.25),w:w2,h:h2});
+  }
+  for(var nbi=0;nbi<neonSpecs.length;nbi++){
+    var specs=neonSpecs[nbi];
+    if(!specs.length) continue;
+    var nm=new THREE.MeshLambertMaterial({color:0x14161a,emissive:neonColors[nbi],emissiveIntensity:0.25});
+    neonMats.push(nm);
+    var neonBatch=new THREE.InstancedMesh(sharedBox(1,1,1),nm,specs.length), neonMatrix=new THREE.Matrix4();
+    for(var nsi=0;nsi<specs.length;nsi++){
+      var spec=specs[nsi];
+      neonMatrix.makeScale(spec.w,spec.h,0.35); neonMatrix.setPosition(spec.x,spec.y,spec.z); neonBatch.setMatrixAt(nsi,neonMatrix);
+      neonSigns.push({position:new THREE.Vector3(spec.x,spec.y,spec.z),material:nm,geometry:{parameters:{width:spec.w}}});
+    }
+    neonBatch.frustumCulled=false; neonBatch.instanceMatrix.needsUpdate=true; scene.add(neonBatch);
   }
 
   // Rampen (gelb-schwarz gestreifte Keile)
@@ -1999,6 +2031,7 @@ function updateDayNight(dt){
   if(headPool){
     var on = NIGHT > 0.06 && G.inCar && !G.inCar.dead;
     headPool.material.opacity = on ? NIGHT*0.55 : 0;
+    headPool.visible = !!on;
     if(on){
       headPool.position.set(G.inCar.x + Math.sin(G.inCar.angle)*5.2, 0.08, G.inCar.z + Math.cos(G.inCar.angle)*5.2);
       headPool.rotation.y = G.inCar.angle;
@@ -2844,7 +2877,14 @@ function updateVisualBudget(force){
     for(var ci=0;ci<list.length;ci++){
       var car=list[ci];
       if(!car.mesh) continue;
-      var near=car===G.inCar || car.missionCar || car.bossCar || dist2(px,pz,car.x,car.z)<12100;
+      if(car.dead){ car.mesh.visible=false; continue; }
+      var carDistance=dist2(px,pz,car.x,car.z);
+      var important=car===G.inCar || car.missionCar || car.bossCar;
+      var carVisibleRange=PERF_STATE.mode?24025:36100;
+      car.mesh.visible=important || carDistance<carVisibleRange;
+      if(!car.mesh.visible) continue;
+      var carDetailRange=PERF_STATE.mode?6400:12100;
+      var near=important || carDistance<carDetailRange;
       if(car.mesh.userData.lodNear===near) continue;
       car.mesh.userData.lodNear=near;
       for(var ch=0;ch<car.mesh.children.length;ch++){
@@ -2855,19 +2895,34 @@ function updateVisualBudget(force){
   }
   for(var pi=0;pi<peds.length;pi++){
     var pe=peds[pi];
-    pe.mesh.visible=!pe.riding && dist2(px,pz,pe.x,pe.z)<13225;
+    pe.mesh.visible=!pe.riding && dist2(px,pz,pe.x,pe.z)<(PERF_STATE.mode?7225:13225);
   }
   for(var bi=0;bi<buildingMeshes.length;bi++){
     var building=buildingMeshes[bi];
+    if(building.userData.worldBatch){ building.visible=true; continue; }
     building.visible=dist2(px,pz,building.position.x,building.position.z)<67600;
   }
   for(var ti=0;ti<treeMeshes.length;ti++){
     var tree=treeMeshes[ti];
+    if(tree.userData.worldBatch){ tree.visible=true; continue; }
     tree.visible=dist2(px,pz,tree.position.x,tree.position.z)<48400;
   }
   for(var si=0;si<cityPropSprites.length;si++){
     var prop=cityPropSprites[si];
-    prop.visible=dist2(px,pz,prop.position.x,prop.position.z)<40000;
+    prop.visible=dist2(px,pz,prop.position.x,prop.position.z)<(PERF_STATE.mode?25600:40000);
+  }
+  var pickupRange=PERF_STATE.mode?10000:19600;
+  for(var pui=0;pui<pickups.length;pui++){
+    var pickup=pickups[pui];
+    pickup.mesh.visible=pickup.active && dist2(px,pz,pickup.x,pickup.z)<pickupRange;
+  }
+  for(var gmi=0;gmi<giverMarkers.length;gmi++){
+    var giver=giverMarkers[gmi], giverVisible=dist2(px,pz,giver.x,giver.z)<25600;
+    giver.ring.visible=giverVisible; giver.sprite.visible=giverVisible;
+  }
+  for(var cri=0;cri<crowns.length;cri++){
+    var crown=crowns[cri];
+    crown.mesh.visible=!crown.found && dist2(px,pz,crown.x,crown.z)<14400;
   }
 }
 
@@ -2875,7 +2930,8 @@ var lastTs = 0, uiAccum = 0;
 function loop(ts){
   requestAnimationFrame(loop);
   var rawDt=(ts-lastTs)/1000 || 0.016;
-  var dt = Math.min(0.066, rawDt);
+  // Bis 10 FPS bleibt die Simulation in Echtzeit, statt sich träge wie Zeitlupe anzufühlen.
+  var dt = Math.min(0.1, rawDt);
   lastTs = ts;
   updateAdaptiveQuality(rawDt);
   if(G.paused){ renderer.render(scene, camera); return; }
@@ -2897,9 +2953,11 @@ function loop(ts){
     if(G.deadT > 2.8) respawn();
   }
   trafficAccum+=dt;
-  if(trafficAccum>=1/30){ updateTraffic(trafficAccum); trafficAccum=0; }
+  var trafficStep=PERF_STATE.mode?1/20:1/30;
+  if(trafficAccum>=trafficStep){ updateTraffic(trafficAccum); trafficAccum=0; }
   pedAccum+=dt;
-  if(pedAccum>=1/20){ updatePeds(pedAccum); pedAccum=0; }
+  var pedStep=PERF_STATE.mode?1/12:1/20;
+  if(pedAccum>=pedStep){ updatePeds(pedAccum); pedAccum=0; }
   updateFx(dt);
   updateParticles(dt);
   updateVehicleSmoke(dt);
@@ -2919,7 +2977,7 @@ function loop(ts){
   updateVisualBudget(0);
   updateSun();
   uiAccum += dt;
-  if(uiAccum >= 0.1){
+  if(uiAccum >= (PERF_STATE.mode?0.125:0.1)){
     drawMinimap();
     updateHUD(uiAccum);
     uiAccum = 0;
@@ -3526,15 +3584,18 @@ var BLITZER = [
 ];
 function sfxBlitz(){ tone(1600,0.06,'square',0.5); noiseBurst(0.04,0.7,null,3000); }
 function buildBlitzer(){
+  var poleBatch=new THREE.InstancedMesh(sharedBox(0.35,2.3,0.35),lam(0x8a8f98),BLITZER.length);
+  var boxBatch=new THREE.InstancedMesh(sharedBox(0.6,0.55,0.55),lam(0x3a3e46),BLITZER.length);
+  var lensBatch=new THREE.InstancedMesh(sharedBox(0.2,0.2,0.06),new THREE.MeshBasicMaterial({color:0x1a2c44}),BLITZER.length);
+  var blitzMatrix=new THREE.Matrix4();
   for(var i=0;i<BLITZER.length;i++){
-    var b = BLITZER[i];
-    var g = new THREE.Group();
-    g.add(mkMesh(new THREE.BoxGeometry(0.35,2.3,0.35), lam(0x8a8f98), 0, 1.15, 0));
-    g.add(mkMesh(new THREE.BoxGeometry(0.6,0.55,0.55), lam(0x3a3e46), 0, 2.5, 0));
-    g.add(mkMesh(new THREE.BoxGeometry(0.2,0.2,0.06), new THREE.MeshBasicMaterial({color:0x1a2c44}), 0, 2.5, 0.3));
-    g.position.set(b.x, 0, b.z);
-    scene.add(g);
+    var b=BLITZER[i];
+    blitzMatrix.makeTranslation(b.x,1.15,b.z); poleBatch.setMatrixAt(i,blitzMatrix);
+    blitzMatrix.makeTranslation(b.x,2.5,b.z); boxBatch.setMatrixAt(i,blitzMatrix);
+    blitzMatrix.makeTranslation(b.x,2.5,b.z+0.3); lensBatch.setMatrixAt(i,blitzMatrix);
   }
+  poleBatch.instanceMatrix.needsUpdate=true; boxBatch.instanceMatrix.needsUpdate=true; lensBatch.instanceMatrix.needsUpdate=true;
+  scene.add(poleBatch); scene.add(boxBatch); scene.add(lensBatch);
 }
 function updateBlitzer(dt){
   for(var i=0;i<BLITZER.length;i++){
@@ -3559,7 +3620,7 @@ function updateBlitzer(dt){
 }
 
 // ---------- Sterne, Vögel, Neon-Glow, Straßenmöbel ----------
-var starPoints = null, birdFlocks = [], birdMat = null, neonGlowMats = [];
+var starPoints = null, birdFlocks = [], birdMat = null, neonGlowMats = [], neonGlowSprites = [];
 function buildSky5(){
   var n = 350;
   var pos = new Float32Array(n*3);
@@ -3615,15 +3676,15 @@ function buildFurniture(){
   for(var st2=0;st2<6;st2++) cp.fillRect(rand(4,30), st2*11+3, rand(14,26), 5);
   var litTex = new THREE.CanvasTexture(cvp);
   var spots = [[-99,-69],[39,-9],[-9,159],[159,39],[-159,-9],[9,-99],[201,141],[-201,81],[81,-201],[-141,-159]];
+  var posterBatch=new THREE.InstancedMesh(sharedCylinder(0.55,0.55,3,10),new THREE.MeshLambertMaterial({map:litTex}),spots.length);
+  var posterTopBatch=new THREE.InstancedMesh(sharedCylinder(0.66,0.62,0.2,10),lam(0x2c2f36),spots.length);
   for(var l=0;l<spots.length;l++){
-    var lg = new THREE.Group();
-    lg.add(mkMesh(new THREE.CylinderGeometry(0.55,0.55,3,10), new THREE.MeshLambertMaterial({map:litTex}), 0, 1.5, 0));
-    lg.add(mkMesh(new THREE.CylinderGeometry(0.66,0.62,0.2,10), lam(0x2c2f36), 0, 3.05, 0));
-    lg.position.set(spots[l][0], 0, spots[l][1]);
-    lg.children[0].castShadow = true;
-    scene.add(lg);
+    m4.makeTranslation(spots[l][0],1.5,spots[l][1]); posterBatch.setMatrixAt(l,m4);
+    m4.makeTranslation(spots[l][0],3.05,spots[l][1]); posterTopBatch.setMatrixAt(l,m4);
     solids.push({x0:spots[l][0]-0.6, x1:spots[l][0]+0.6, z0:spots[l][1]-0.6, z1:spots[l][1]+0.6});
   }
+  posterBatch.castShadow=true; posterBatch.instanceMatrix.needsUpdate=true; posterTopBatch.instanceMatrix.needsUpdate=true;
+  scene.add(posterBatch); scene.add(posterTopBatch);
   // Neon-Glow-Halos
   for(var ni=0;ni<neonSigns.length;ni++){
     var sign = neonSigns[ni];
@@ -3635,6 +3696,7 @@ function buildFurniture(){
     gs.scale.set(sc, sc*0.55, 1);
     scene.add(gs);
     neonGlowMats.push(gm);
+    neonGlowSprites.push(gs);
   }
 }
 function updateSky5(dt){
@@ -3650,7 +3712,10 @@ function updateSky5(dt){
       sp.scale.y = 1.3 + Math.sin(G.time*9 + b*2)*0.5;
     }
   }
-  for(var n=0;n<neonGlowMats.length;n++) neonGlowMats[n].opacity = NIGHT*0.55;
+  for(var n=0;n<neonGlowMats.length;n++){
+    neonGlowMats[n].opacity = NIGHT*0.55;
+    neonGlowSprites[n].visible = NIGHT > 0.02;
+  }
 }
 
 // ---------- Hupe verscheucht Passanten ----------
@@ -4158,7 +4223,10 @@ function updateStreaks(dt){
 }
 function updateNeonRefl(){
   var op = NIGHT * WEATHER.rain * 0.5;
-  for(var i=0;i<neonRefl.length;i++) neonRefl[i].material.opacity = op;
+  for(var i=0;i<neonRefl.length;i++){
+    neonRefl[i].material.opacity = op;
+    neonRefl[i].visible = op > 0.01;
+  }
 }
 
 // ---------- Sprechblasen & Vogel-Chirps & Jingles ----------
@@ -4285,6 +4353,7 @@ function buildRouteArrows(){
       map:tex, transparent:true, opacity:0, depthWrite:false}));
     m.position.y = 0.14;
     m.renderOrder = 5;
+    m.visible = false;
     scene.add(m);
     routeArrows.push(m);
   }
@@ -4305,6 +4374,7 @@ function updateRouteArrows(dt){
       if(local > sl){ segStart += sl; seg++; continue; }
       var fx = (bx-ax)/sl, fz = (bz-az)/sl;
       var m = routeArrows[used];
+      m.visible = true;
       m.position.x = ax + fx*local;
       m.position.z = az + fz*local;
       m.rotation.y = Math.atan2(fx, fz);
@@ -4313,7 +4383,10 @@ function updateRouteArrows(dt){
       d += SPACING;
     }
   }
-  for(var i=used;i<routeArrows.length;i++) routeArrows[i].material.opacity = 0;
+  for(var i=used;i<routeArrows.length;i++){
+    routeArrows[i].material.opacity = 0;
+    routeArrows[i].visible = false;
+  }
 }
 
 // ---------- Zeitrennen ----------

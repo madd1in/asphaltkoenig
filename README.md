@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.4
+
+- Gebäude, Parkbäume, Neonschilder, Litfaßsäulen und Blitzer werden in wenigen GPU-Batches gezeichnet
+- entfernte Fahrzeuge, Passanten, Pickups, Kronen und Stadtmöbel nutzen im Performance-Modus aggressiveres Distanz-LOD
+- die Simulation holt langsame Frames besser nach; Verkehr, Passanten und HUD arbeiten dabei mit angepassten Update-Raten
+- gegenüber Version 1.3 nochmals rund 31 % weniger Draw Calls und 63 % weniger Geometrien im Software-Fallback
+
 ## Neu in Version 1.3
 
 - adaptiver Performance-Modus: Auf langsamen Geräten werden Schatten deaktiviert und die interne Auflösung behutsam auf 85 % reduziert

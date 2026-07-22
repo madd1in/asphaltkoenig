@@ -180,6 +180,9 @@ async function run() {
       shadowsEnabled: renderer.shadowMap.enabled,
       sharedGeometries: Object.keys(SHARED_GEO).length,
       buildings: buildingInfos.length,
+      buildingBatches: buildingMeshes.length,
+      treeBatches: treeMeshes.length,
+      neonBatches: neonMats.length,
       pixelRatio: renderer.getPixelRatio()
     }))()`);
 
@@ -273,8 +276,10 @@ async function run() {
       || assets.shuffleSources.some((source) => !source.endsWith('.mp3'))
       || assets.mp3Durations.some((duration) => !Number.isFinite(duration) || duration < 5)
       || assets.shuffleDurations.some((duration) => !Number.isFinite(duration) || duration < 30)
-      || performanceSample.fps < 5 || performanceSample.callsMedian > 600
-      || performanceSample.geometries > 420 || !assets.performanceMode || assets.shadowsEnabled
+      || performanceSample.fps < 5 || performanceSample.callsMedian > 380
+      || performanceSample.geometries > 160 || after.sceneChildren > 520
+      || assets.buildingBatches > 5 || assets.treeBatches > 4 || assets.neonBatches > 4
+      || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;
     }
