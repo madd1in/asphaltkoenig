@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.15
+
+- Mobile-Kurvenkamera blickt weich in Fahr- und Lenkrichtung voraus, damit enge Kurven früher sichtbar werden
+- zusätzlicher Vorausblick bei höherem Tempo, ohne Kameraruckler oder Änderungen an der Desktop-Kamera
+- Regressionstest prüft Aufbau und sauberes Zurückstellen des Mobile-Kurvenblicks
+
 ## Neu in Version 1.5.14
 
 - mehr kontrollierter Mobile-Lenkeinschlag, insbesondere bei höherem Tempo

@@ -2751,7 +2751,7 @@ function updatePickups(dt){
 }
 
 // ---------- Kamera & Sonne ----------
-var camTmp = null;
+var camTmp = null, MOBILE_CAMERA_TURN = 0;
 function updateCamera(dt){
   if(!camTmp) camTmp = new THREE.Vector3();
   if(!G.started){
@@ -2763,6 +2763,14 @@ function updateCamera(dt){
   var px, pz, ang, back, h;
   if(G.inCar){ px=G.inCar.x; pz=G.inCar.z; ang=G.inCar.angle; back=10.5; h=5.2; }
   else { px=player.x; pz=player.z; ang=player.angle; back=6.2; h=3.2; }
+  // Mobile-Kurvenkamera: sanft in den anstehenden Bogen schauen, ohne die Kamera ruckartig zu versetzen.
+  var mobileDriving=G.inCar && (IS_MOBILE||TOUCH_AXIS.active||TOUCH_HELD.KeyW||TOUCH_HELD.KeyS||TOUCH_HELD.KeyA||TOUCH_HELD.KeyD);
+  var mobileTurn=0;
+  if(mobileDriving){
+    mobileTurn=TOUCH_AXIS.active ? -TOUCH_AXIS.x : ((TOUCH_HELD.KeyA?1:0)-(TOUCH_HELD.KeyD?1:0));
+  }
+  var turnFollow=1-Math.pow(0.0008,dt);
+  MOBILE_CAMERA_TURN+= (mobileTurn-MOBILE_CAMERA_TURN)*turnFollow;
   camTmp.set(px - Math.sin(ang)*back, h, pz - Math.cos(ang)*back);
   var t = 1 - Math.pow(IS_MOBILE?0.000005:0.0015, dt);
   camera.position.lerp(camTmp, t);
@@ -2772,7 +2780,10 @@ function updateCamera(dt){
     camera.position.y += rand(-1,1)*G.shake*0.35;
     camera.position.z += rand(-1,1)*G.shake*0.5;
   }
-  camera.lookAt(px + Math.sin(ang)*3, 1.6, pz + Math.cos(ang)*3);
+  var speedLook=mobileDriving ? clamp(Math.abs(G.kmh)/135,0,1)*1.65 : 0;
+  var turnLook=Math.abs(MOBILE_CAMERA_TURN)*1.25;
+  var sideLook=MOBILE_CAMERA_TURN*1.05;
+  camera.lookAt(px + Math.sin(ang)*(3+speedLook+turnLook) + Math.cos(ang)*sideLook, 1.6, pz + Math.cos(ang)*(3+speedLook+turnLook) - Math.sin(ang)*sideLook);
   var tf = 62 + clamp(Math.abs(G.kmh)/140, 0, 1)*10;
   camera.fov += (tf - camera.fov) * clamp(4*dt, 0, 1);
   camera.updateProjectionMatrix();
