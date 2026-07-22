@@ -83,6 +83,7 @@
   .driving #touchFootActions{display:none;}
   .touchAction{height:62px;border-radius:50%;font-size:10px;letter-spacing:.5px;}
   #touchNitro{background:linear-gradient(145deg,rgba(32,205,235,.88),rgba(100,76,220,.88));}
+  #touchDrift{background:linear-gradient(145deg,rgba(238,137,48,.92),rgba(151,59,24,.9));}
   #touchSprint{background:linear-gradient(145deg,rgba(72,167,235,.9),rgba(48,79,173,.88));}
   #touchEnter,#touchFootEnter{background:linear-gradient(145deg,rgba(255,210,74,.92),rgba(218,119,28,.92));color:#302006;}
   #touchFootEnter{grid-column:1/-1;border-radius:18px;}
@@ -165,8 +166,8 @@
       <button class="touchBtn touchMini" data-tap="KeyP" aria-label="Pause">PAUSE</button>
     </div>
     <div id="touchDriveActions" class="touchActionGrid">
-      <button id="touchNitro" class="touchBtn touchAction" data-hold="KeyQ">NITRO</button>
       <button id="touchDrift" class="touchBtn touchAction" data-hold="Space">DRIFT</button>
+      <button id="touchNitro" class="touchBtn touchAction" data-hold="KeyQ" aria-label="Dash mit Nitro">DASH</button>
       <button id="touchBrake" class="touchBtn touchAction" data-hold="KeyS">BREMSE</button>
       <button id="touchGas" class="touchBtn touchAction" data-hold="KeyW">GAS</button>
     </div>
@@ -1352,7 +1353,7 @@ function updatePlayerCar(c, dt){
     var steerDir=steerSpeed<-.2?-1:1;
     var absSteerSpeed=Math.abs(steerSpeed);
     sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.6,.4,1):0);
-    var directSteerRate=lerp(3.25,2.05,clamp(absSteerSpeed/24,0,1));
+    var directSteerRate=lerp(4.0,2.25,clamp(absSteerSpeed/26,0,1));
     c.angle += steer * directSteerRate * sf * dt;
   } else {
     sf=clamp(speedAlong/5.8,-1,1);

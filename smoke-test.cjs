@@ -245,12 +245,14 @@ async function run() {
       const car=G.inCar;
       document.body.classList.add('touch-device','game-started');
       updateTouchLabels();
-      const gas=document.getElementById('touchGas'), brake=document.getElementById('touchBrake'), left=document.getElementById('touchLeft'), right=document.getElementById('touchRight');
+      const gas=document.getElementById('touchGas'), brake=document.getElementById('touchBrake'), dash=document.getElementById('touchNitro'), drift=document.getElementById('touchDrift'), left=document.getElementById('touchLeft'), right=document.getElementById('touchRight');
       const driveControlsVisible=getComputedStyle(document.getElementById('touchDriveActions')).display==='grid'&&getComputedStyle(document.getElementById('touchFootActions')).display==='none';
       const gasRect=gas.getBoundingClientRect();
-      const brakeRect=brake.getBoundingClientRect(), leftRect=left.getBoundingClientRect(), rightRect=right.getBoundingClientRect();
+      const brakeRect=brake.getBoundingClientRect(), dashRect=dash.getBoundingClientRect(), driftRect=drift.getBoundingClientRect(), leftRect=left.getBoundingClientRect(), rightRect=right.getBoundingClientRect();
       const gasBottomRight=gasRect.left>innerWidth*0.5&&gasRect.bottom>innerHeight*0.8&&getComputedStyle(gas).pointerEvents==='auto';
       const brakeLeftOfGas=brakeRect.right<=gasRect.left+1&&Math.abs(brakeRect.bottom-gasRect.bottom)<2;
+      const dashAboveGas=Math.abs((dashRect.left+dashRect.right)-(gasRect.left+gasRect.right))<2&&dashRect.bottom<=gasRect.top+1&&dash.textContent==='DASH';
+      const driftAboveBrake=Math.abs((driftRect.left+driftRect.right)-(brakeRect.left+brakeRect.right))<2&&driftRect.bottom<=brakeRect.top+1;
       const largeSteerButtons=leftRect.height>=74&&rightRect.height>=74;
       const inputStarted=performance.now();
       gas.dispatchEvent(new PointerEvent('pointerdown',{pointerId:101,bubbles:true}));
@@ -274,7 +276,7 @@ async function run() {
       const highSpeedTurn=Math.abs(wrapAng(car.angle-highSpeedStartAngle));
       left.dispatchEvent(new PointerEvent('pointerup',{pointerId:104,bubbles:true}));
       gas.dispatchEvent(new PointerEvent('pointerup',{pointerId:103,bubbles:true}));
-      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn,buttonInputLatencyMs,buttonsHeld,buttonsReleased,driveControlsVisible,gasBottomRight,brakeLeftOfGas,largeSteerButtons,gasRect:{left:gasRect.left,top:gasRect.top,right:gasRect.right,bottom:gasRect.bottom},brakeRect:{left:brakeRect.left,top:brakeRect.top,right:brakeRect.right,bottom:brakeRect.bottom},steerButtonHeight:leftRect.height};
+      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn,buttonInputLatencyMs,buttonsHeld,buttonsReleased,driveControlsVisible,gasBottomRight,brakeLeftOfGas,dashAboveGas,driftAboveBrake,largeSteerButtons,gasRect:{left:gasRect.left,top:gasRect.top,right:gasRect.right,bottom:gasRect.bottom},brakeRect:{left:brakeRect.left,top:brakeRect.top,right:brakeRect.right,bottom:brakeRect.bottom},steerButtonHeight:leftRect.height};
       car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
       car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
       return result;
@@ -406,9 +408,9 @@ async function run() {
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
       || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || !touchDrive.driveControlsVisible || !touchDrive.gasBottomRight
-      || !touchDrive.brakeLeftOfGas || !touchDrive.largeSteerButtons || touchDrive.buttonInputLatencyMs > 5
-      || touchDrive.angleDelta < 0.9 || touchDrive.angleDelta > 1.16 || touchDrive.kmh < 12
-      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.2 || touchDrive.highSpeedTurn > 0.4
+      || !touchDrive.brakeLeftOfGas || !touchDrive.dashAboveGas || !touchDrive.driftAboveBrake || !touchDrive.largeSteerButtons || touchDrive.buttonInputLatencyMs > 5
+      || touchDrive.angleDelta < 1.1 || touchDrive.angleDelta > 1.45 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.24 || touchDrive.highSpeedTurn > 0.42
       || touchDrive.coastRatio > 0.58
       || desktopDrive.firstSteerStep < 0.08 || desktopDrive.firstSteerStep > 0.16
       || desktopDrive.angleDelta < 0.42 || desktopDrive.angleDelta > 0.86 || desktopDrive.kmh < 25

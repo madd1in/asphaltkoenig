@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.13
+
+- ergonomische rechte Fahrsteuerung: `DRIFT` direkt über `BREMSE`, `DASH` direkt über `GAS`
+- klarere Farbcodierung: Dash blau, Drift orange, Bremse rot und Gas grün
+- deutlich höhere Mobile-Lenkrate für stärkeren realen Lenkeinschlag bei engen Kurven
+- Regressionstests prüfen die vertikalen Daumenspuren von Drift/Bremse und Dash/Gas
+
 ## Neu in Version 1.5.12
 
 - deutlich größerer Mobile-Lenkeinschlag: rund 18 % mehr Wirkung im typischen Kurventempo
