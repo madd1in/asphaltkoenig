@@ -170,6 +170,7 @@ async function run() {
       return {
         controls:Boolean(document.getElementById('touchControls')),
         buttons:document.querySelectorAll('#touchControls button').length,
+        driveButtons:['touchLeft','touchRight','touchBrake','touchGas'].every(id=>Boolean(document.getElementById(id))),
         setupType:typeof setupTouchControls,
         analogMoved,analogAxis,throttleBoost,steeringPrecision,inputLatencyMs,released:!TOUCH_AXIS.active,
         holdStarted,holdReleased,pausedBefore,pausedByTouch,resumedByTouch
@@ -227,22 +228,31 @@ async function run() {
     })()`);
     const touchDrive = await evaluate(`(() => {
       const car=G.inCar;
-      setTouchAxis(-0.62,-0.86,true);
+      updateTouchLabels();
+      const gas=document.getElementById('touchGas'), left=document.getElementById('touchLeft');
+      const inputStarted=performance.now();
+      gas.dispatchEvent(new PointerEvent('pointerdown',{pointerId:101,bubbles:true}));
+      left.dispatchEvent(new PointerEvent('pointerdown',{pointerId:102,bubbles:true}));
+      const buttonInputLatencyMs=performance.now()-inputStarted;
+      const buttonsHeld=keys.KeyW===true&&keys.KeyA===true;
       for(let frame=0;frame<30;frame+=1) updatePlayerCar(car,1/60);
       const angleDelta=Math.abs(car.angle), kmh=Math.abs(G.kmh);
-      releaseTouchStick();
+      left.dispatchEvent(new PointerEvent('pointerup',{pointerId:102,bubbles:true}));
+      gas.dispatchEvent(new PointerEvent('pointerup',{pointerId:101,bubbles:true}));
+      const buttonsReleased=!keys.KeyW&&!keys.KeyA;
       const coastStart=Math.abs(G.kmh);
       for(let frame=0;frame<60;frame+=1) updatePlayerCar(car,1/60);
       const coastEnd=Math.abs(G.kmh), coastRatio=coastEnd/Math.max(0.01,coastStart);
       car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
-      setTouchAxis(0,-1,true);
+      gas.dispatchEvent(new PointerEvent('pointerdown',{pointerId:103,bubbles:true}));
       for(let frame=0;frame<75;frame+=1) updatePlayerCar(car,1/60);
       const highSpeedKmh=Math.abs(G.kmh), highSpeedStartAngle=car.angle;
-      setTouchAxis(-0.62,-0.86,true);
+      left.dispatchEvent(new PointerEvent('pointerdown',{pointerId:104,bubbles:true}));
       for(let frame=0;frame<15;frame+=1) updatePlayerCar(car,1/60);
       const highSpeedTurn=Math.abs(wrapAng(car.angle-highSpeedStartAngle));
-      releaseTouchStick();
-      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn};
+      left.dispatchEvent(new PointerEvent('pointerup',{pointerId:104,bubbles:true}));
+      gas.dispatchEvent(new PointerEvent('pointerup',{pointerId:103,bubbles:true}));
+      const result={angleDelta,kmh,coastStart,coastEnd,coastRatio,highSpeedKmh,highSpeedTurn,buttonInputLatencyMs,buttonsHeld,buttonsReleased};
       car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
       car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
       return result;
@@ -317,7 +327,7 @@ async function run() {
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
     const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, touchDrive, assets, errors: errorList };
-    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} highSpeedTurn=${touchDrive.highSpeedTurn.toFixed(3)} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
+    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} driveButtonMs=${touchDrive.buttonInputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} highSpeedTurn=${touchDrive.highSpeedTurn.toFixed(3)} coastRatio=${touchDrive.coastRatio.toFixed(3)} errors=${errorList.length}`);
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -340,13 +350,14 @@ async function run() {
       || performanceSample.fps < 5 || performanceSample.callsMedian > 260
       || performanceSample.geometries > 160 || after.sceneChildren > 520
       || assets.buildingBatches > 5 || assets.treeBatches > 4 || assets.neonBatches > 4
-      || !assets.touchControls || assets.touchButtons !== 8 || !assets.inactiveSkidsHidden
-      || mobileControls.setupType !== 'function' || !mobileControls.analogMoved || !mobileControls.analogAxis.active
+      || !assets.touchControls || assets.touchButtons !== 12 || !assets.inactiveSkidsHidden
+      || mobileControls.setupType !== 'function' || !mobileControls.driveButtons || !mobileControls.analogMoved || !mobileControls.analogAxis.active
       || !mobileControls.throttleBoost || !mobileControls.steeringPrecision || mobileControls.inputLatencyMs > 5
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
-      || touchDrive.angleDelta < 0.64 || touchDrive.angleDelta > 0.9 || touchDrive.kmh < 12
-      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.12 || touchDrive.highSpeedTurn > 0.48
+      || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || touchDrive.buttonInputLatencyMs > 5
+      || touchDrive.angleDelta < 0.45 || touchDrive.angleDelta > 0.82 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.12 || touchDrive.highSpeedTurn > 0.38
       || touchDrive.coastRatio > 0.58
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {

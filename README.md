@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.5
+
+- feste Mobile-Fahrbuttons für `LINKS`, `RECHTS`, `BREMSE` und `GAS` ersetzen den Analogstick im Auto
+- geschwindigkeitsabhängig begrenzte Button-Lenkung verhindert Übersteuern und stoppt sofort beim Loslassen
+- der Analogstick bleibt zu Fuß erhalten und kann beim Einsteigen keine versteckte Restlenkung erzeugen
+- Multi-Touch erlaubt gleichzeitig Gas und Lenkung; neue Regressionstests prüfen Halten, Loslassen und Eingabelatenz
+
 ## Neu in Version 1.5.4
 
 - getrennte Kennlinien für Lenkung und Gas: präzise kleine Lenkkorrekturen bei weiterhin direkter Beschleunigung
