@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.3
+
+- adaptiver Performance-Modus: Auf langsamen Geräten werden Schatten deaktiviert und die interne Auflösung behutsam auf 85 % reduziert
+- Distanz-LOD für Autos, Passanten, Gebäude, Bäume und Stadtmöbel sowie gedrosselte Hintergrundsimulation
+- gebündelte Stadtflächen und Dächer plus gemeinsam genutzte Geometrien für Fahrzeuge und Figuren
+- im CPU-/Software-Fallback rund 54 % weniger Draw Calls, 77 % weniger Geometrien und mehr als doppelte Bildrate
+
 ## Neu in Version 1.2.1
 
 - fairere Polizeiverfolgung: weniger Einheiten, gestaffelte Verstärkung und deutlich seltenerer Rammschaden
@@ -43,7 +50,7 @@ npm install
 node .\smoke-test.cjs
 ```
 
-Der Smoke-Test lädt das Spiel in einem Headless-Browser, startet eine Runde und prüft Bewegung, Beschleunigung, Nitro, Tile-/Sprite-Assets, Shuffle-Radio, MP3-Metadaten, Modellumfang und JavaScript-Laufzeitfehler.
+Der Smoke-Test lädt das Spiel in einem Headless-Browser, startet eine Runde und prüft Bewegung, Beschleunigung, Nitro, Tile-/Sprite-Assets, Shuffle-Radio, MP3-Metadaten, Modellumfang, das adaptive Performance-Budget und JavaScript-Laufzeitfehler.
 
 Die MP3-Loops lassen sich deterministisch neu erzeugen:
 

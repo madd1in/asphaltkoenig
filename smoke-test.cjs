@@ -96,6 +96,10 @@ async function run() {
     await send('Runtime.enable');
     await send('Page.enable');
     await send('Log.enable');
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+      let seed = 0xA5FA17;
+      Math.random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+    })();` });
     await send('Page.reload', { ignoreCache: true });
     await delay(5000);
 
@@ -110,6 +114,39 @@ async function run() {
 
     await evaluate(`document.getElementById('startBtn').click()`);
     await delay(3000);
+    const performanceSample = await evaluate(`new Promise((resolve) => {
+      const samples = [], callSamples = [];
+      let last = performance.now();
+      const startedAt = last;
+      function tick(now) {
+        samples.push(now - last);
+        callSamples.push(renderer.info.render.calls);
+        last = now;
+        if (now - startedAt >= 3000) {
+          samples.shift();
+          samples.sort((a,b) => a-b);
+          const avgMs = samples.reduce((sum,value) => sum + value, 0) / samples.length;
+          callSamples.sort((a,b) => a-b);
+          resolve({
+            frames: samples.length,
+            avgMs,
+            fps: 1000 / avgMs,
+            p95Ms: samples[Math.floor(samples.length * 0.95)],
+            maxMs: samples[samples.length - 1],
+            calls: renderer.info.render.calls,
+            callsMin: callSamples[0],
+            callsMedian: callSamples[Math.floor(callSamples.length * 0.5)],
+            callsMax: callSamples[callSamples.length - 1],
+            triangles: renderer.info.render.triangles,
+            geometries: renderer.info.memory.geometries,
+            textures: renderer.info.memory.textures
+          });
+          return;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    })`);
     const startPosition = await evaluate(`({ x: player.x, z: player.z })`);
     await send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyW', key: 'w' });
     await delay(900);
@@ -139,6 +176,10 @@ async function run() {
       voiceEnabled,
       playerParts: player.mesh.children.length,
       carParts: parkedCars[0].mesh.children.length,
+      performanceMode: PERF_STATE.mode,
+      shadowsEnabled: renderer.shadowMap.enabled,
+      sharedGeometries: Object.keys(SHARED_GEO).length,
+      buildings: buildingInfos.length,
       pixelRatio: renderer.getPixelRatio()
     }))()`);
 
@@ -212,7 +253,7 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, nitro, policeBalance, assets, errors: errorList };
+    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, assets, errors: errorList };
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -232,7 +273,9 @@ async function run() {
       || assets.shuffleSources.some((source) => !source.endsWith('.mp3'))
       || assets.mp3Durations.some((duration) => !Number.isFinite(duration) || duration < 5)
       || assets.shuffleDurations.some((duration) => !Number.isFinite(duration) || duration < 30)
-      || assets.pixelRatio > 1.35 || errorList.length) {
+      || performanceSample.fps < 5 || performanceSample.callsMedian > 600
+      || performanceSample.geometries > 420 || !assets.performanceMode || assets.shadowsEnabled
+      || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;
     }
 
