@@ -68,6 +68,7 @@
   .driving #touchDrivePad{display:grid;}
   .touchDriveButton{height:60px;border-radius:18px;font-size:11px;letter-spacing:.7px;pointer-events:auto;}
   .touchSteerButton{height:76px;background:linear-gradient(145deg,rgba(38,46,62,.9),rgba(15,20,30,.86));font-size:27px;}
+  .touchSteerButton.pressed{background:linear-gradient(145deg,rgba(71,104,143,.96),rgba(21,38,61,.94));box-shadow:0 0 0 2px rgba(122,218,255,.5),0 5px 18px rgba(0,0,0,.32);}
   .touchSteerButton small{display:block;margin-top:3px;font-size:9px;letter-spacing:1.2px;}
   #touchBrake{background:linear-gradient(145deg,rgba(225,82,65,.9),rgba(126,31,39,.88));}
   #touchGas{background:linear-gradient(145deg,rgba(65,211,124,.92),rgba(27,118,76,.9));}
@@ -1320,7 +1321,8 @@ function updatePlayerCar(c, dt){
   var brake = Math.max(keys['KeyS']?1:0,Math.max(0,touchY));
   var keySteer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
   var buttonSteering=!TOUCH_AXIS.active && keySteer!==0 && !!(TOUCH_HELD.KeyA||TOUCH_HELD.KeyD);
-  var buttonSteerScale=lerp(.88,.52,clamp(Math.abs(speedAlong)/24,0,1));
+  // Direkte Tasten bleiben bei Tempo klar wirksam; Bremsen/Driften gibt bewusst etwas mehr Kurvenbiss.
+  var buttonSteerScale=lerp(.90,.60,clamp(Math.abs(speedAlong)/26,0,1));
   var desktopSteering=!TOUCH_AXIS.active&&!buttonSteering;
   if(desktopSteering){
     var desktopSteerLimit=lerp(.86,.62,clamp(Math.abs(speedAlong)/30,0,1));
@@ -1353,7 +1355,8 @@ function updatePlayerCar(c, dt){
     var steerDir=steerSpeed<-.2?-1:1;
     var absSteerSpeed=Math.abs(steerSpeed);
     sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.6,.4,1):0);
-    var directSteerRate=lerp(4.0,2.25,clamp(absSteerSpeed/26,0,1));
+    var directSteerRate=lerp(4.12,2.42,clamp(absSteerSpeed/28,0,1));
+    if(buttonSteering && (brake>0.1 || hand)) directSteerRate*=1.13;
     c.angle += steer * directSteerRate * sf * dt;
   } else {
     sf=clamp(speedAlong/5.8,-1,1);
@@ -1365,7 +1368,7 @@ function updatePlayerCar(c, dt){
   speedAlong = c.vx*fwdX + c.vz*fwdZ;
   speedAlong = clamp(speedAlong, maxR, maxF);
   var latX = c.vx - fwdX*speedAlong, latZ = c.vz - fwdZ*speedAlong;
-  var grip = hand ? 0.988 : (touchDriving ? (0.68 + WEATHER.rain*0.11) : (0.82 + WEATHER.rain*0.09));
+  var grip = hand ? 0.988 : (touchDriving ? (0.74 + WEATHER.rain*0.10) : (0.82 + WEATHER.rain*0.09));
   var g2 = Math.pow(grip, dt*60);
   latX *= g2; latZ *= g2;
   if(hand && (latX*latX+latZ*latZ) > 9 && c.y <= 0){

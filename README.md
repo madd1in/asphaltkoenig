@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.14
+
+- mehr kontrollierter Mobile-Lenkeinschlag, insbesondere bei höherem Tempo
+- gezielte Kurvenhilfe: `BREMSE` oder `DRIFT` zusammen mit `LINKS`/`RECHTS` erzeugt einen stärkeren, bewussten Kurvenimpuls
+- mehr Mobile-Grip gegen Untersteuern; Handbremse bleibt weiterhin klar driftig
+- sichtbares blaues Feedback beim Gedrückthalten der Lenktasten sowie ein Regressionstest für die Kurvenhilfe
+
 ## Neu in Version 1.5.13
 
 - ergonomische rechte Fahrsteuerung: `DRIFT` direkt über `BREMSE`, `DASH` direkt über `GAS`
