@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.6
+
+- `GAS` sitzt jetzt fest in der untersten rechten Position der Mobile-Fahrsteuerung
+- `EIN/AUS` wurde in den linken Fahrblock neben `BREMSE` verschoben
+- Layout-Regressionstest prüft Position und Bedienbarkeit des Gasbuttons im Mobile-Viewport
+
 ## Neu in Version 1.5.5
 
 - feste Mobile-Fahrbuttons für `LINKS`, `RECHTS`, `BREMSE` und `GAS` ersetzen den Analogstick im Auto
