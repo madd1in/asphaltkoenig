@@ -1309,8 +1309,8 @@ function updatePlayerCar(c, dt){
   if(TOUCH_AXIS.active){
     var steerDir=steerSpeed<-.2?-1:1;
     var absSteerSpeed=Math.abs(steerSpeed);
-    sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.6,.42,1):0);
-    var directSteerRate=lerp(3.25,2.25,clamp(absSteerSpeed/28,0,1));
+    sf=steerDir*(absSteerSpeed>.1?clamp(absSteerSpeed/3.6,.4,1):0);
+    var directSteerRate=lerp(3.25,2.05,clamp(absSteerSpeed/24,0,1));
     c.angle += steer * directSteerRate * sf * dt;
   } else {
     sf=clamp(speedAlong/6.5,-1,1);
@@ -2892,17 +2892,24 @@ function updateHUD(dt){
 var KEY_ALIAS = {ArrowUp:'KeyW', ArrowDown:'KeyS', ArrowLeft:'KeyA', ArrowRight:'KeyD'};
 var IS_MOBILE = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints>0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
 var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null,used:false};
-function touchResponse(v){
+function touchThrottleResponse(v){
   var av=Math.abs(v), dead=0.025;
   if(av<=dead) return 0;
   return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.68);
+}
+function touchSteerResponse(v){
+  var av=Math.abs(v), dead=0.035;
+  if(av<=dead) return 0;
+  var normalized=(av-dead)/(1-dead);
+  var shaped=normalized*0.72+Math.pow(normalized,1.5)*0.28;
+  return (v<0?-1:1)*shaped;
 }
 function setTouchAxis(x,y,active){
   var len=Math.sqrt(x*x+y*y);
   if(len>1){ x/=len; y/=len; }
   TOUCH_AXIS.rawX=x; TOUCH_AXIS.rawY=y;
-  TOUCH_AXIS.x=touchResponse(x);
-  TOUCH_AXIS.y=touchResponse(y);
+  TOUCH_AXIS.x=touchSteerResponse(x);
+  TOUCH_AXIS.y=touchThrottleResponse(y);
   TOUCH_AXIS.active=active!==false && (TOUCH_AXIS.x!==0 || TOUCH_AXIS.y!==0);
   if(TOUCH_AXIS.active) TOUCH_AXIS.used=true;
   var knob=document.getElementById('touchStickKnob');

@@ -155,7 +155,8 @@ async function run() {
       for(let frame=0;frame<12;frame+=1) updatePlayerFoot(1/60);
       const analogMoved=Math.hypot(player.x-x0,player.z-z0)>0.1;
       const analogAxis={x:TOUCH_AXIS.x,y:TOUCH_AXIS.y,rawX:TOUCH_AXIS.rawX,rawY:TOUCH_AXIS.rawY,active:TOUCH_AXIS.active};
-      const responseBoost=Math.abs(TOUCH_AXIS.x)>Math.abs(TOUCH_AXIS.rawX) && Math.abs(TOUCH_AXIS.y)>Math.abs(TOUCH_AXIS.rawY);
+      const throttleBoost=Math.abs(TOUCH_AXIS.y)>Math.abs(TOUCH_AXIS.rawY);
+      const steeringPrecision=Math.abs(TOUCH_AXIS.x)<Math.abs(TOUCH_AXIS.rawX);
       releaseTouchStick();
       player.x=x0; player.z=z0; player.angle=a0; player.mesh.position.set(x0,0,z0); player.mesh.rotation.y=a0;
       const nitroButton=document.getElementById('touchNitro');
@@ -170,7 +171,7 @@ async function run() {
         controls:Boolean(document.getElementById('touchControls')),
         buttons:document.querySelectorAll('#touchControls button').length,
         setupType:typeof setupTouchControls,
-        analogMoved,analogAxis,responseBoost,inputLatencyMs,released:!TOUCH_AXIS.active,
+        analogMoved,analogAxis,throttleBoost,steeringPrecision,inputLatencyMs,released:!TOUCH_AXIS.active,
         holdStarted,holdReleased,pausedBefore,pausedByTouch,resumedByTouch
       };
     })()`);
@@ -341,11 +342,11 @@ async function run() {
       || assets.buildingBatches > 5 || assets.treeBatches > 4 || assets.neonBatches > 4
       || !assets.touchControls || assets.touchButtons !== 8 || !assets.inactiveSkidsHidden
       || mobileControls.setupType !== 'function' || !mobileControls.analogMoved || !mobileControls.analogAxis.active
-      || !mobileControls.responseBoost || mobileControls.inputLatencyMs > 5
+      || !mobileControls.throttleBoost || !mobileControls.steeringPrecision || mobileControls.inputLatencyMs > 5
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
-      || touchDrive.angleDelta < 0.82 || touchDrive.angleDelta > 1.02 || touchDrive.kmh < 12
-      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.2 || touchDrive.highSpeedTurn > 0.6
+      || touchDrive.angleDelta < 0.64 || touchDrive.angleDelta > 0.9 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.12 || touchDrive.highSpeedTurn > 0.48
       || touchDrive.coastRatio > 0.58
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {

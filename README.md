@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.4
+
+- getrennte Kennlinien für Lenkung und Gas: präzise kleine Lenkkorrekturen bei weiterhin direkter Beschleunigung
+- ruhige, nahezu lineare Lenkmitte mit voller Auslenkung am äußeren Stickbereich
+- stärker begrenzte Giergeschwindigkeit bei hohem Tempo gegen leichtes Übersteuern
+- Regressionstests prüfen Lenkpräzision, Gasansprache sowie Kurvenwinkel bei Mittel- und Hochgeschwindigkeit
+
 ## Neu in Version 1.5.3
 
 - geschwindigkeitsabhängige Touch-Lenkung verhindert Übersteuern bei höherem Tempo
