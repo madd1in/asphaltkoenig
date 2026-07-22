@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.9
+
+- stärkere digitale Mobile-Lenkung bei niedrigem und mittlerem Tempo für engere Kurven
+- moderat erhöhte Hochgeschwindigkeitslenkung, weiterhin klar begrenzt gegen Übersteuern
+- Regressionstests verlangen jetzt mehr Kurvenwinkel bei unverändert sicherem Hochgeschwindigkeitskorridor
+
 ## Neu in Version 1.5.8
 
 - `BREMSE` sitzt im Auto jetzt direkt links neben `GAS` in der untersten rechten Button-Reihe

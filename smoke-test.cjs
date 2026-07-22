@@ -384,8 +384,8 @@ async function run() {
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
       || !touchDrive.buttonsHeld || !touchDrive.buttonsReleased || !touchDrive.driveControlsVisible || !touchDrive.gasBottomRight
       || !touchDrive.brakeLeftOfGas || !touchDrive.largeSteerButtons || touchDrive.buttonInputLatencyMs > 5
-      || touchDrive.angleDelta < 0.45 || touchDrive.angleDelta > 0.82 || touchDrive.kmh < 12
-      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.12 || touchDrive.highSpeedTurn > 0.38
+      || touchDrive.angleDelta < 0.68 || touchDrive.angleDelta > 0.98 || touchDrive.kmh < 12
+      || touchDrive.highSpeedKmh < 55 || touchDrive.highSpeedTurn < 0.16 || touchDrive.highSpeedTurn > 0.36
       || touchDrive.coastRatio > 0.58
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
