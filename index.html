@@ -1319,7 +1319,7 @@ function updatePlayerCar(c, dt){
   var brake = Math.max(keys['KeyS']?1:0,Math.max(0,touchY));
   var keySteer = (keys['KeyA']?1:0) - (keys['KeyD']?1:0);
   var buttonSteering=!TOUCH_AXIS.active && keySteer!==0 && !!(TOUCH_HELD.KeyA||TOUCH_HELD.KeyD);
-  var buttonSteerScale=lerp(.68,.44,clamp(Math.abs(speedAlong)/24,0,1));
+  var buttonSteerScale=lerp(.73,.46,clamp(Math.abs(speedAlong)/24,0,1));
   var desktopSteering=!TOUCH_AXIS.active&&!buttonSteering;
   if(desktopSteering){
     var desktopSteerLimit=lerp(.86,.62,clamp(Math.abs(speedAlong)/30,0,1));

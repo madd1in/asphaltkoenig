@@ -2,6 +2,12 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.11
+
+- nochmals leicht stärkere Mobile-Lenkung: rund 7 % mehr bei niedriger/mittlerer Geschwindigkeit
+- behutsame Anhebung bei hohem Tempo um etwa 5 %, weiterhin unter der Übersteuerungsgrenze
+- Desktop-Lenkung, Schadensmodell und Mobile-Buttonlayout bleiben unverändert
+
 ## Neu in Version 1.5.10
 
 - präzisere Desktop-Lenkung mit kurzer Eingaberampe, sauberem Rückstellen und geschwindigkeitsabhängiger Maximalwirkung
