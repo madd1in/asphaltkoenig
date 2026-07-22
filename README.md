@@ -2,6 +2,13 @@
 
 Ein kleines 3D-Open-World-Spiel, das komplett im Browser läuft.
 
+## Neu in Version 1.5.1
+
+- direktere Touch-Kurve mit nur noch 5,5 % Totzone und stärkerer Reaktion im mittleren Stickbereich
+- deutlich bessere Lenkwirkung beim Anfahren sowie schnelleres Kamerafolgen auf Mobilgeräten
+- Coalesced-/Raw-Pointer-Samples reduzieren veraltete Touchpositionen zwischen zwei Frames
+- mobile Blur-Effekte entfallen, um zusätzliche Compositing-Latenz zu vermeiden
+
 ## Neu in Version 1.5
 
 - analoge Touch-Steuerung zum Laufen, Sprinten, Beschleunigen, Bremsen und Lenken

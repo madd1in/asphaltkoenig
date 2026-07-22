@@ -75,6 +75,7 @@
   .touch-drive{opacity:.38;pointer-events:none;}
   .driving .touch-drive{opacity:1;pointer-events:auto;}
   @media (max-width:760px), (pointer:coarse){
+    .chip,.touchBtn,#touchStick{backdrop-filter:none;-webkit-backdrop-filter:none;}
     #hudTL{top:max(7px,env(safe-area-inset-top));left:max(7px,env(safe-area-inset-left));gap:5px;transform:scale(.82);transform-origin:top left;}
     #minimap{width:112px;height:112px;top:max(7px,env(safe-area-inset-top));right:max(7px,env(safe-area-inset-right));}
     #radioEl{top:124px;right:max(7px,env(safe-area-inset-right));max-width:180px;font-size:9px;}
@@ -1301,8 +1302,16 @@ function updatePlayerCar(c, dt){
     else { c.vx -= fwdX*10*dt; c.vz -= fwdZ*10*dt; }
   }
   // Lenken (skaliert mit Tempo, invertiert beim Rueckwaertsfahren)
-  var sf = clamp(speedAlong/6.5, -1, 1);
-  c.angle += steer * 2.25 * sf * dt;
+  var steerSpeed=c.vx*fwdX+c.vz*fwdZ;
+  var sf;
+  if(TOUCH_AXIS.active){
+    var steerDir=steerSpeed<-.2?-1:1;
+    sf=steerDir*(Math.abs(steerSpeed)>.15?clamp(Math.abs(steerSpeed)/4.2,.32,1):0);
+    c.angle += steer * 2.85 * sf * dt;
+  } else {
+    sf=clamp(speedAlong/6.5,-1,1);
+    c.angle += steer * 2.25 * sf * dt;
+  }
   // Grip: Quergeschwindigkeit daempfen
   fwdX = Math.sin(c.angle); fwdZ = Math.cos(c.angle);
   speedAlong = c.vx*fwdX + c.vz*fwdZ;
@@ -2529,7 +2538,7 @@ function onBossDestroyed(c){
 function updatePlayerFoot(dt){
   G.nitro=Math.min(100,G.nitro+9*dt);
   var rot = TOUCH_AXIS.active ? -TOUCH_AXIS.x : ((keys['KeyA']?1:0) - (keys['KeyD']?1:0));
-  player.angle += rot*3.7*dt;
+  player.angle += rot*(TOUCH_AXIS.active?4.9:3.7)*dt;
   var fwd = (keys['KeyW']?1:0) - (keys['KeyS']?0.6:0);
   if(TOUCH_AXIS.active){
     var touchFwd=-TOUCH_AXIS.y;
@@ -2700,7 +2709,7 @@ function updateCamera(dt){
   if(G.inCar){ px=G.inCar.x; pz=G.inCar.z; ang=G.inCar.angle; back=10.5; h=5.2; }
   else { px=player.x; pz=player.z; ang=player.angle; back=6.2; h=3.2; }
   camTmp.set(px - Math.sin(ang)*back, h, pz - Math.cos(ang)*back);
-  var t = 1 - Math.pow(0.0015, dt);
+  var t = 1 - Math.pow(IS_MOBILE?0.00005:0.0015, dt);
   camera.position.lerp(camTmp, t);
   G.shake = Math.max(0, G.shake - dt*1.8);
   if(G.shake > 0.01){
@@ -2876,15 +2885,21 @@ function updateHUD(dt){
 // ---------- Eingabe ----------
 var KEY_ALIAS = {ArrowUp:'KeyW', ArrowDown:'KeyS', ArrowLeft:'KeyA', ArrowRight:'KeyD'};
 var IS_MOBILE = !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints>0 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
-var TOUCH_AXIS = {x:0,y:0,active:false,pointerId:null};
+var TOUCH_AXIS = {x:0,y:0,rawX:0,rawY:0,active:false,pointerId:null};
+function touchResponse(v){
+  var av=Math.abs(v), dead=0.055;
+  if(av<=dead) return 0;
+  return (v<0?-1:1)*Math.pow((av-dead)/(1-dead),0.72);
+}
 function setTouchAxis(x,y,active){
   var len=Math.sqrt(x*x+y*y);
   if(len>1){ x/=len; y/=len; }
-  TOUCH_AXIS.x=Math.abs(x)<0.12?0:x;
-  TOUCH_AXIS.y=Math.abs(y)<0.12?0:y;
+  TOUCH_AXIS.rawX=x; TOUCH_AXIS.rawY=y;
+  TOUCH_AXIS.x=touchResponse(x);
+  TOUCH_AXIS.y=touchResponse(y);
   TOUCH_AXIS.active=active!==false && (TOUCH_AXIS.x!==0 || TOUCH_AXIS.y!==0);
   var knob=document.getElementById('touchStickKnob');
-  if(knob) knob.style.transform='translate3d('+(TOUCH_AXIS.x*38).toFixed(1)+'px,'+(TOUCH_AXIS.y*38).toFixed(1)+'px,0)';
+  if(knob) knob.style.transform='translate3d('+(TOUCH_AXIS.rawX*38).toFixed(1)+'px,'+(TOUCH_AXIS.rawY*38).toFixed(1)+'px,0)';
 }
 function releaseTouchStick(){ TOUCH_AXIS.pointerId=null; setTouchAxis(0,0,false); }
 function mobileHaptic(){ if(IS_MOBILE && navigator.vibrate) navigator.vibrate(8); }
@@ -2904,8 +2919,10 @@ function setupTouchControls(){
   var stick=document.getElementById('touchStick');
   function moveStick(e){
     if(TOUCH_AXIS.pointerId!==e.pointerId) return;
+    var samples=e.getCoalescedEvents?e.getCoalescedEvents():null;
+    var point=samples&&samples.length?samples[samples.length-1]:e;
     var rect=stick.getBoundingClientRect(), radius=rect.width*0.36;
-    setTouchAxis((e.clientX-(rect.left+rect.width/2))/radius,(e.clientY-(rect.top+rect.height/2))/radius,true);
+    setTouchAxis((point.clientX-(rect.left+rect.width/2))/radius,(point.clientY-(rect.top+rect.height/2))/radius,true);
     e.preventDefault();
   }
   stick.addEventListener('pointerdown',function(e){
@@ -2914,6 +2931,7 @@ function setupTouchControls(){
     moveStick(e); mobileHaptic();
   });
   stick.addEventListener('pointermove',moveStick);
+  if('onpointerrawupdate' in window) stick.addEventListener('pointerrawupdate',moveStick);
   function endStick(e){ if(TOUCH_AXIS.pointerId===e.pointerId){ releaseTouchStick(); e.preventDefault(); } }
   stick.addEventListener('pointerup',endStick); stick.addEventListener('pointercancel',endStick);
   var holdButtons=document.querySelectorAll('[data-hold]');

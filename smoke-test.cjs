@@ -149,10 +149,13 @@ async function run() {
     })`);
     const mobileControls = await evaluate(`(() => {
       const x0=player.x, z0=player.z, a0=player.angle;
+      const inputStarted=performance.now();
       setTouchAxis(0.55,-0.85,true);
+      const inputLatencyMs=performance.now()-inputStarted;
       for(let frame=0;frame<12;frame+=1) updatePlayerFoot(1/60);
       const analogMoved=Math.hypot(player.x-x0,player.z-z0)>0.1;
-      const analogAxis={x:TOUCH_AXIS.x,y:TOUCH_AXIS.y,active:TOUCH_AXIS.active};
+      const analogAxis={x:TOUCH_AXIS.x,y:TOUCH_AXIS.y,rawX:TOUCH_AXIS.rawX,rawY:TOUCH_AXIS.rawY,active:TOUCH_AXIS.active};
+      const responseBoost=Math.abs(TOUCH_AXIS.x)>Math.abs(TOUCH_AXIS.rawX) && Math.abs(TOUCH_AXIS.y)>Math.abs(TOUCH_AXIS.rawY);
       releaseTouchStick();
       player.x=x0; player.z=z0; player.angle=a0; player.mesh.position.set(x0,0,z0); player.mesh.rotation.y=a0;
       const nitroButton=document.getElementById('touchNitro');
@@ -167,7 +170,7 @@ async function run() {
         controls:Boolean(document.getElementById('touchControls')),
         buttons:document.querySelectorAll('#touchControls button').length,
         setupType:typeof setupTouchControls,
-        analogMoved,analogAxis,released:!TOUCH_AXIS.active,
+        analogMoved,analogAxis,responseBoost,inputLatencyMs,released:!TOUCH_AXIS.active,
         holdStarted,holdReleased,pausedBefore,pausedByTouch,resumedByTouch
       };
     })()`);
@@ -220,6 +223,16 @@ async function run() {
       car.x = 0; car.z = -30; car.angle = 0; car.vx = 0; car.vz = 0;
       car.mesh.position.set(car.x, 0, car.z);
       car.mesh.rotation.y = 0;
+    })()`);
+    const touchDrive = await evaluate(`(() => {
+      const car=G.inCar;
+      setTouchAxis(-0.62,-0.86,true);
+      for(let frame=0;frame<30;frame+=1) updatePlayerCar(car,1/60);
+      const result={angleDelta:Math.abs(car.angle),kmh:Math.abs(G.kmh)};
+      releaseTouchStick();
+      car.x=0; car.z=-30; car.angle=0; car.vx=0; car.vz=0; car.y=0; car.vy=0;
+      car.mesh.position.set(0,0,-30); car.mesh.rotation.y=0; G.kmh=0; G.nitro=100;
+      return result;
     })()`);
     const driveKmh = await evaluate(`(() => {
       keys.KeyW = true;
@@ -290,8 +303,8 @@ async function run() {
     fs.writeFileSync(screenshotPath, Buffer.from(screenshot.data, 'base64'));
     const moved = Math.hypot(after.playerX - startPosition.x, after.playerZ - startPosition.z) > 0.1;
     const errorList = Array.from(errors);
-    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, assets, errors: errorList };
-    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchButtons=${mobileControls.buttons} errors=${errorList.length}`);
+    const result = { before, after, moved, driveKmh, nitro, policeBalance, performanceSample, mobileControls, touchDrive, assets, errors: errorList };
+    console.log(`SMOKE_METRICS fps=${performanceSample.fps.toFixed(2)} calls=${performanceSample.callsMedian} geometries=${performanceSample.geometries} touchInputMs=${mobileControls.inputLatencyMs.toFixed(3)} touchTurn=${touchDrive.angleDelta.toFixed(3)} errors=${errorList.length}`);
     console.log(JSON.stringify(result, null, 2));
 
     if (before.three !== 'object' || !before.button || !after.started || after.startVisible || !moved
@@ -316,8 +329,10 @@ async function run() {
       || assets.buildingBatches > 5 || assets.treeBatches > 4 || assets.neonBatches > 4
       || !assets.touchControls || assets.touchButtons !== 8 || !assets.inactiveSkidsHidden
       || mobileControls.setupType !== 'function' || !mobileControls.analogMoved || !mobileControls.analogAxis.active
+      || !mobileControls.responseBoost || mobileControls.inputLatencyMs > 5
       || !mobileControls.released || !mobileControls.holdStarted || !mobileControls.holdReleased
       || mobileControls.pausedBefore || !mobileControls.pausedByTouch || !mobileControls.resumedByTouch
+      || touchDrive.angleDelta < 0.18 || touchDrive.kmh < 12
       || !assets.performanceMode || assets.shadowsEnabled
       || assets.sharedGeometries > 60 || assets.pixelRatio > 0.86 || errorList.length) {
       process.exitCode = 1;
